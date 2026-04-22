@@ -108,36 +108,8 @@ class AppProvider extends ChangeNotifier {
     return jobs;
   }
 
-  AppProvider() { _initGuest(); }
+  AppProvider() { _init(); }
 
-  void _initGuest() {
-    // GUEST MODE - bypasses Firebase auth for testing
-    _currentUser = AppUser(
-      id: 'guest_seeker_001',
-      role: UserRole.seeker,
-      name: 'Kiran (Guest)',
-      headline: 'Software Engineer · 3 yrs exp',
-      company: 'TCS',
-      title: 'Software Engineer',
-      location: 'Bangalore',
-      experience: 3,
-      skills: ['React', 'Node.js', 'TypeScript', 'AWS', 'Python'],
-      bio: 'Full stack engineer looking for exciting opportunities at product companies.',
-      email: 'kiran@guest.dev',
-      profileComplete: 75,
-      activelyLooking: true,
-      noticePeriod: '30 days',
-      expectedSalary: '20-30',
-    );
-    _activeRole = UserRole.seeker;
-    _authReady = true;
-    // Load jobs from Firestore (read-only is fine)
-    _subs.add(_db.watchActiveJobs().listen((list) { _jobs = list; notifyListeners(); }));
-    _subs.add(_db.watchProviders().listen((list) { _providers = list; notifyListeners(); }));
-    notifyListeners();
-    // Seed sample jobs if none exist
-    _db.seedSampleJobs();
-  }
 
   void _init() {
     _subs.add(_auth.authStateChanges.listen((firebaseUser) async {
@@ -201,9 +173,13 @@ class AppProvider extends ChangeNotifier {
           }));
         }
       }
+      // Always stop loading after setup, even if user doc missing
+      _loading = false;
+      notifyListeners();
+      // Seed jobs if none exist
+      _db.seedSampleJobs();
     } catch (e) {
       _error = e.toString();
-    } finally {
       _loading = false;
       notifyListeners();
     }

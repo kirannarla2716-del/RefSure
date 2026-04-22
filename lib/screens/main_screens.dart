@@ -19,7 +19,31 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
     final user = prov.currentUser;
-    if (user == null) return const LoadingSpinner();
+    if (user == null) {
+      // Firebase Auth exists but no Firestore profile - show recovery screen
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.person_off_outlined, size: 64, color: AppColors.textHint),
+          const SizedBox(height: 16),
+          Text('Profile not found', style: GoogleFonts.inter(
+            fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text('Your account exists but profile is missing.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecond)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () async {
+              await context.read<AppProvider>().signOut();
+              if (context.mounted) context.go('/auth');
+            },
+            child: const Text('Sign Out & Sign Up Again')),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => context.go('/onboarding'),
+            child: const Text('Complete Profile Setup')),
+        ])));
+    }
 
     final myApps   = prov.myApplications;
     final topJobs  = prov.filteredJobs.take(3).toList();
