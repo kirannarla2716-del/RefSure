@@ -1,0 +1,15 @@
+{
+    "name": "RefSure",
+    "short_name": "RefSure",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#7C3AED",
+    "theme_color": "#7C3AED",
+    "description": "Where real referrals happen.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "icons/Icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}
