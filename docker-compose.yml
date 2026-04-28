@@ -3,5 +3,5 @@ services:
     build: .
     container_name: refsure-web
     ports:
-      - "80:80"
+      - "3010:80"
     restart: unless-stopped
