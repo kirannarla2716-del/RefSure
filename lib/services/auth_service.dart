@@ -1,6 +1,7 @@
 // lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/models.dart';
 
@@ -68,16 +69,38 @@ class AuthService {
 
   Future<AuthResult> signInWithGoogle({UserRole role = UserRole.seeker}) async {
     try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return AuthResult(success: false, error: 'Cancelled');
+      UserCredential userCredential;
+      String? displayName;
+      String? email;
+      String? photoUrl;
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+      if (kIsWeb) {
+        // On web, use Firebase Auth's signInWithPopup directly.
+        // This avoids the deprecated google_sign_in_web signIn() method.
+        final provider = GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+        userCredential = await _auth.signInWithPopup(provider);
+        displayName = userCredential.user?.displayName;
+        email = userCredential.user?.email ?? '';
+        photoUrl = userCredential.user?.photoURL;
+      } else {
+        // On mobile, use the google_sign_in package.
+        final googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) {
+          return AuthResult(success: false, error: 'Cancelled');
+        }
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        userCredential = await _auth.signInWithCredential(credential);
+        displayName = googleUser.displayName;
+        email = googleUser.email;
+        photoUrl = googleUser.photoUrl;
+      }
 
-      final userCredential = await _auth.signInWithCredential(credential);
       final uid = userCredential.user!.uid;
 
       // Create profile if new user
@@ -86,15 +109,15 @@ class AuthService {
         final user = AppUser(
           id: uid,
           role: role,
-          name: googleUser.displayName ?? 'User',
+          name: displayName ?? 'User',
           headline: role == UserRole.provider ? 'Referral Provider' : 'Job Seeker',
           title: '',
           location: '',
           experience: 0,
           skills: [],
           bio: '',
-          email: googleUser.email,
-          photoUrl: googleUser.photoUrl,
+          email: email ?? '',
+          photoUrl: photoUrl,
           profileComplete: 40,
         );
         await _db.collection('users').doc(uid).set(user.toFirestore());
@@ -120,7 +143,9 @@ class AuthService {
   // ── Sign out ───────────────────────────────────────────────
 
   Future<void> signOut() async {
-    await GoogleSignIn().signOut();
+    if (!kIsWeb) {
+      try { await GoogleSignIn().signOut(); } catch (_) {}
+    }
     await _auth.signOut();
   }
 
