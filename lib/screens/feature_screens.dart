@@ -69,17 +69,17 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
             _Strip('${all.where((a) => a.status == AppStatus.strongMatch).length}',
-              '🎯 Strong Match', AppColors.primary),
+              'Strong Match', AppColors.primary),
             _Strip('${all.where((a) => a.status == AppStatus.shortlisted).length}',
               'Shortlisted', AppColors.accent),
             _Strip('${all.where((a) => a.status == AppStatus.referred).length}',
-              '✅ Referred', AppColors.emerald),
+              'Referred', AppColors.emerald),
             _Strip('${all.where((a) => a.status == AppStatus.hired).length}',
-              '🎉 Hired', AppColors.gold),
+              'Hired', AppColors.gold),
           ])),
 
         Expanded(child: filtered.isEmpty
-          ? EmptyState(emoji: '📋',
+          ? EmptyState(icon: Icons.assignment_outlined,
               title: _tab == 'all' ? 'No applications yet' : 'None in this status',
               subtitle: 'Browse jobs and apply',
               action: _tab == 'all' ? ElevatedButton(
@@ -203,8 +203,7 @@ class _OverviewTab extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0A66C2), Color(0xFF004182)]),
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(8)),
           child: Row(children: [
             const Icon(Icons.verified_user_outlined, color: Colors.white),
@@ -222,9 +221,9 @@ class _OverviewTab extends StatelessWidget {
       SectionCard(child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
           StatBox(label: 'Total Apps', value: '$total', valueColor: AppColors.primary),
-          StatBox(label: '🎯 Strong', value: '$strong', valueColor: AppColors.emerald),
+          StatBox(label: 'Strong', value: '$strong', valueColor: AppColors.emerald),
           StatBox(label: 'Shortlisted', value: '$shortl', valueColor: AppColors.accent),
-          StatBox(label: '✅ Referred', value: '$referred', valueColor: AppColors.emerald),
+          StatBox(label: 'Referred', value: '$referred', valueColor: AppColors.emerald),
         ]),
         const SizedBox(height: 14),
         TrustScoreBar(user.computedTrustScore),
@@ -233,13 +232,14 @@ class _OverviewTab extends StatelessWidget {
       ])),
 
       const SizedBox(height: 16),
-      SectionHeader(title: '🎯 Top Candidates',
+      SectionHeader(title: 'Top Candidates',
         action: TextButton(onPressed: () {},
           child: const Text('View all'))),
       const SizedBox(height: 10),
 
       if (topApps.isEmpty)
-        const EmptyState(emoji: '📥', title: 'No applications yet',
+        const EmptyState(icon: Icons.inbox_outlined,
+          title: 'No applications yet',
           subtitle: 'Post jobs to start receiving applications'),
 
       ...topApps.map((app) {
@@ -285,14 +285,14 @@ class _CandidatesTabState extends State<_CandidatesTab> {
           scrollDirection: Axis.horizontal,
           child: Row(children: [
             _FilterTab('All', 'all', _filter, () => setState(() => _filter = 'all')),
-            _FilterTab('🎯 80+', 'strong', _filter, () => setState(() => _filter = 'strong')),
+            _FilterTab('80+ Match', 'strong', _filter, () => setState(() => _filter = 'strong')),
             _FilterTab('Pending', 'pending', _filter, () => setState(() => _filter = 'pending')),
             _FilterTab('Shortlisted', 'shortlisted', _filter, () => setState(() => _filter = 'shortlisted')),
             _FilterTab('Referred', 'referred', _filter, () => setState(() => _filter = 'referred')),
           ]))),
 
       Expanded(child: filtered.isEmpty
-        ? EmptyState(emoji: '📥', title: 'No candidates here',
+        ? EmptyState(icon: Icons.inbox_outlined, title: 'No candidates here',
             subtitle: 'Switch filter or post more jobs')
         : ListView.separated(
             padding: const EdgeInsets.all(16), itemCount: filtered.length,
@@ -451,13 +451,26 @@ class _CandidateCardState extends State<_CandidateCard> {
             fontSize: 12, color: AppColors.textSecond, height: 1.5)),
           if (report.matchedSkills.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text('✅ ${report.matchedSkills.join(", ")}',
-              style: GoogleFonts.inter(fontSize: 11, color: AppColors.emerald, fontWeight: FontWeight.w600)),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.check_circle_outline,
+                size: 12, color: AppColors.emerald),
+              const SizedBox(width: 4),
+              Expanded(child: Text(report.matchedSkills.join(", "),
+                style: GoogleFonts.inter(fontSize: 11,
+                  color: AppColors.emerald, fontWeight: FontWeight.w600))),
+            ]),
           ],
           if (report.missingSkills.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('⚠️ Missing: ${report.missingSkills.join(", ")}',
-              style: GoogleFonts.inter(fontSize: 11, color: AppColors.amber, fontWeight: FontWeight.w600)),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.warning_amber_outlined,
+                size: 12, color: AppColors.amber),
+              const SizedBox(width: 4),
+              Expanded(child: Text(
+                'Missing: ${report.missingSkills.join(", ")}',
+                style: GoogleFonts.inter(fontSize: 11,
+                  color: AppColors.amber, fontWeight: FontWeight.w600))),
+            ]),
           ],
         ],
 
@@ -475,18 +488,25 @@ class _CandidateCardState extends State<_CandidateCard> {
               Text(_expanded ? 'Less' : 'Analysis', style: GoogleFonts.inter(
                 fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
             ])),
-          const Spacer(),
-          _ActionBtn('Skip', AppColors.red.withOpacity(0.08), AppColors.red,
-            () => _updateStatus(context, AppStatus.notSelected)),
-          const SizedBox(width: 6),
-          _ActionBtn('Review', AppColors.amberLight, AppColors.amber,
-            () => _updateStatus(context, AppStatus.underReview)),
-          const SizedBox(width: 6),
-          _ActionBtn('Shortlist', AppColors.primaryLight, AppColors.primary,
-            () => _updateStatus(context, AppStatus.shortlisted)),
-          const SizedBox(width: 6),
-          _ActionBtn('✅ Refer', AppColors.emeraldLight, AppColors.emerald,
-            () => _referWithNote(context)),
+          const SizedBox(width: 8),
+          // Action row scrolls on narrow screens to prevent overflow.
+          Expanded(child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              _ActionBtn('Skip', AppColors.redLight, AppColors.red,
+                () => _updateStatus(context, AppStatus.notSelected)),
+              const SizedBox(width: 6),
+              _ActionBtn('Review', AppColors.amberLight, AppColors.amber,
+                () => _updateStatus(context, AppStatus.underReview)),
+              const SizedBox(width: 6),
+              _ActionBtn('Shortlist', AppColors.primaryLight, AppColors.primary,
+                () => _updateStatus(context, AppStatus.shortlisted)),
+              const SizedBox(width: 6),
+              _ActionBtn('Refer', AppColors.emeraldLight, AppColors.emerald,
+                () => _referWithNote(context)),
+            ]),
+          )),
         ]),
       ]),
     );
@@ -530,7 +550,7 @@ class _CandidateCardState extends State<_CandidateCard> {
                   note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim());
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('✅ Referral submitted!'),
+                  content: Text('Referral submitted.'),
                   backgroundColor: AppColors.emerald,
                   behavior: SnackBarBehavior.floating));
               },
@@ -584,8 +604,8 @@ class _MyJobsTab extends StatelessWidget {
         ])),
 
       Expanded(child: jobs.isEmpty
-        ? EmptyState(emoji: '📋', title: 'No jobs posted yet',
-            subtitle: 'Post jobs from your company career portal or create manually',
+        ? EmptyState(icon: Icons.work_outline, title: 'No jobs posted yet',
+            subtitle: 'Post jobs from your company careers portal or create manually',
             action: ElevatedButton(
               onPressed: () => context.push('/post-job'),
               child: const Text('Post First Job')))
@@ -674,7 +694,7 @@ class _PostJobScreenState extends State<PostJobScreen>
       bottom: TabBar(controller: _tabs,
         indicatorColor: AppColors.primary, labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.textHint,
-        tabs: const [Tab(text: 'Manual Entry'), Tab(text: '🔗 Import from Portal')])),
+        tabs: const [Tab(text: 'Manual Entry'), Tab(text: 'Import from Portal')])),
     body: TabBarView(controller: _tabs, children: [
       _ManualPostForm(),
       _CareersPortalImport(),
@@ -842,11 +862,10 @@ class _ManualPostFormState extends State<_ManualPostForm> {
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Mark as Hot / Urgent', style: GoogleFonts.inter(fontSize: 14)),
-          Text('🔥 Shown with Hot badge', style: GoogleFonts.inter(
+          Text('Shown with a Hot badge', style: GoogleFonts.inter(
             fontSize: 11, color: AppColors.textHint)),
         ])),
-        Switch(value: _isHot, onChanged: (v) => setState(() => _isHot = v),
-          activeColor: AppColors.primary),
+        Switch(value: _isHot, onChanged: (v) => setState(() => _isHot = v)),
       ]),
       const SizedBox(height: 12),
       _f('Careers Portal URL (optional)', _extUrl, 'https://company.com/careers/job-id'),
@@ -908,7 +927,7 @@ class _ManualPostFormState extends State<_ManualPostForm> {
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('🎉 Job published!'),
+      content: Text('Job published.'),
       backgroundColor: AppColors.emerald, behavior: SnackBarBehavior.floating));
     context.pop();
   }
@@ -1007,11 +1026,15 @@ class _CareersPortalImportState extends State<_CareersPortalImport> {
     Container(padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.amberLight, borderRadius: BorderRadius.circular(8)),
-      child: Text(
-        '⚠️  Full careers portal scraping requires a backend Cloud Function '
-        'due to CORS restrictions. This screen shows the UX flow. '
-        'Connect your Firebase function at /functions/fetchCareers.js.',
-        style: GoogleFonts.inter(fontSize: 11, color: AppColors.amber, height: 1.4))),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.info_outline, size: 14, color: AppColors.amber),
+        const SizedBox(width: 8),
+        Expanded(child: Text(
+          'Full careers portal scraping requires a backend Cloud Function '
+          'due to CORS restrictions. This screen shows the UX flow. '
+          'Connect your Firebase function at /functions/fetchCareers.js.',
+          style: GoogleFonts.inter(fontSize: 11, color: AppColors.amber, height: 1.4))),
+      ])),
   ]);
 
   Future<void> _fetch() async {
@@ -1117,7 +1140,7 @@ class ProfileScreen extends StatelessWidget {
           if (user.linkedinUrl != null)
             _InfoLine(Icons.link, user.linkedinUrl!),
           if (user.resumeUrl != null)
-            _InfoLine(Icons.attach_file, 'Resume uploaded ✅'),
+            _InfoLine(Icons.attach_file, 'Resume uploaded'),
         ])),
 
         const SizedBox(height: 12),
@@ -1204,7 +1227,8 @@ class MessagesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
       body: contacts.isEmpty
-          ? const EmptyState(emoji: '💬', title: 'No conversations',
+          ? const EmptyState(icon: Icons.chat_bubble_outline,
+              title: 'No conversations',
               subtitle: 'Message providers to ask about referrals')
           : ListView.separated(
               padding: const EdgeInsets.all(16), itemCount: contacts.length,

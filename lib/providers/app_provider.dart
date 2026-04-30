@@ -345,9 +345,9 @@ class AppProvider extends ChangeNotifier {
     final job = findJob(app.jobId);
     final statusTexts = {
       AppStatus.shortlisted: 'was shortlisted',
-      AppStatus.referred:    'has been referred ✅',
-      AppStatus.interview:   'has been scheduled for interview 📅',
-      AppStatus.hired:       'has been hired! 🎉',
+      AppStatus.referred:    'has been referred',
+      AppStatus.interview:   'has been scheduled for interview',
+      AppStatus.hired:       'has been hired',
       AppStatus.notSelected: 'was not selected this time',
       AppStatus.closed:      'position has been closed',
     };
@@ -365,7 +365,7 @@ class AppProvider extends ChangeNotifier {
   MatchReport computeMatch(Job job) {
     if (_currentUser == null) {
       return MatchReport(
-        score: 0, band: MatchBand.lowMatch, bandLabel: '🔴 Low Match',
+        score: 0, band: MatchBand.lowMatch, bandLabel: 'Low Match',
         recommendation: 'Sign in to see your match.',
         matchedSkills: [], missingSkills: job.skills,
         strengths: [], gaps: [],

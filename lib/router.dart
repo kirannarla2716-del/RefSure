@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/di/injection.dart';
+import 'design_system/design_system.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/screens/auth_screen.dart' as auth_feature;
 import 'providers/app_provider.dart';
@@ -115,7 +116,7 @@ class _ShellScaffold extends StatelessWidget {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE0E0E0)))),
+          border: Border(top: BorderSide(color: AppColors.border))),
         child: BottomNavigationBar(
           currentIndex: index,
           onTap: (i) => context.go(routes[i]),
@@ -124,8 +125,8 @@ class _ShellScaffold extends StatelessWidget {
           backgroundColor: Colors.white,
           selectedFontSize: 11,
           unselectedFontSize: 11,
-          selectedItemColor: const Color(0xFF0A66C2),
-          unselectedItemColor: const Color(0xFF999999),
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.textHint,
           items: isProvider ? _providerItems : _seekerItems,
         ),
       ),

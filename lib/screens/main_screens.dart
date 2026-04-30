@@ -55,7 +55,7 @@ class HomeScreen extends StatelessWidget {
         SliverAppBar(
           floating: true, backgroundColor: Colors.white, surfaceTintColor: Colors.white,
           title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Hey ${user.name.split(' ').first} 👋', style: GoogleFonts.inter(
+            Text('Hey, ${user.name.split(' ').first}', style: GoogleFonts.inter(
               fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             Text('Where real referrals happen', style: GoogleFonts.inter(
               fontSize: 11, color: AppColors.textHint)),
@@ -102,8 +102,7 @@ class HomeScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0A66C2), Color(0xFF004182)]),
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(8)),
                   child: Row(children: [
                     const Icon(Icons.verified_user_outlined, color: Colors.white),
@@ -111,7 +110,7 @@ class HomeScreen extends StatelessWidget {
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('Get Org Verified', style: GoogleFonts.inter(
                         fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                      Text('3× more referral requests with verified badge',
+                      Text('3x more referral requests with verified badge',
                         style: GoogleFonts.inter(fontSize: 11, color: Colors.white70)),
                     ])),
                     const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
@@ -125,11 +124,11 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(width: 8),
               _statCard(
                 '${myApps.where((a) => a.status == AppStatus.referred).length}',
-                'Referred ✅', AppColors.emerald),
+                'Referred', AppColors.emerald),
               const SizedBox(width: 8),
               _statCard(
                 '${myApps.where((a) => a.status == AppStatus.interview).length}',
-                'Interview 📅', AppColors.accent),
+                'Interview', AppColors.accent),
             ]),
             const SizedBox(height: 20),
 
@@ -150,7 +149,7 @@ class HomeScreen extends StatelessWidget {
 
             // ── Hot jobs ───────────────────────────────────
             SectionHeader(
-              title: '🔥 Hot Jobs',
+              title: 'Hot Jobs',
               action: TextButton(onPressed: () => context.push('/jobs'),
                 child: const Text('See all'))),
             const SizedBox(height: 10),
@@ -160,7 +159,7 @@ class HomeScreen extends StatelessWidget {
 
             // ── Top providers ──────────────────────────────
             SectionHeader(
-              title: '⭐ Top Providers',
+              title: 'Top Providers',
               action: TextButton(onPressed: () => context.push('/providers'),
                 child: const Text('See all'))),
             const SizedBox(height: 10),
@@ -242,15 +241,15 @@ class _JobsScreenState extends State<JobsScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(children: [
-              _QuickChip('⭐ Best Match', filter.sortBy == JobSortBy.matchScore,
+              _QuickChip('Best Match', filter.sortBy == JobSortBy.matchScore,
                 () => prov.updateJobFilter(filter.copyWith(sortBy: JobSortBy.matchScore))),
-              _QuickChip('🕐 Recent', filter.sortBy == JobSortBy.recent,
+              _QuickChip('Recent', filter.sortBy == JobSortBy.recent,
                 () => prov.updateJobFilter(filter.copyWith(sortBy: JobSortBy.recent))),
-              _QuickChip('🔥 Hot', filter.hotOnly,
+              _QuickChip('Hot', filter.hotOnly,
                 () => prov.updateJobFilter(filter.copyWith(hotOnly: !filter.hotOnly))),
-              _QuickChip('🆕 Today', filter.todayOnly,
+              _QuickChip('Today', filter.todayOnly,
                 () => prov.updateJobFilter(filter.copyWith(todayOnly: !filter.todayOnly))),
-              _QuickChip('📅 Last 10 days', filter.last10Days,
+              _QuickChip('Last 10 days', filter.last10Days,
                 () => prov.updateJobFilter(filter.copyWith(last10Days: !filter.last10Days))),
               ...['Remote','Hybrid','On-site'].map((m) =>
                 _QuickChip(m, filter.workMode == m, () =>
@@ -265,7 +264,7 @@ class _JobsScreenState extends State<JobsScreen> {
             ]))),
 
         Expanded(child: jobs.isEmpty
-          ? EmptyState(emoji: '🔍', title: 'No jobs found',
+          ? EmptyState(icon: Icons.search_off_outlined, title: 'No jobs found',
               subtitle: 'Try different filters or clear all',
               action: TextButton(onPressed: prov.clearJobFilter,
                 child: const Text('Clear filters')))
@@ -460,18 +459,36 @@ class JobDetailScreen extends StatelessWidget {
               ]),
               const SizedBox(height: 12),
               if (report.matchedSkills.isNotEmpty) ...[
-                Text('✅ Matched: ${report.matchedSkills.take(3).join(", ")}',
-                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.emerald,
-                    fontWeight: FontWeight.w600)),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.check_circle_outline,
+                    size: 14, color: AppColors.emerald),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(
+                    'Matched: ${report.matchedSkills.take(3).join(", ")}',
+                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.emerald,
+                      fontWeight: FontWeight.w600))),
+                ]),
                 const SizedBox(height: 4),
               ],
               if (report.missingSkills.isNotEmpty)
-                Text('⚠️ Missing: ${report.missingSkills.take(2).join(", ")}',
-                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.amber,
-                    fontWeight: FontWeight.w600)),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.warning_amber_outlined,
+                    size: 14, color: AppColors.amber),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(
+                    'Missing: ${report.missingSkills.take(2).join(", ")}',
+                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.amber,
+                      fontWeight: FontWeight.w600))),
+                ]),
               const SizedBox(height: 8),
-              Text('Tap to see full analysis →', style: GoogleFonts.inter(
-                fontSize: 12, color: AppColors.primary)),
+              Row(children: [
+                Text('Tap to see full analysis', style: GoogleFonts.inter(
+                  fontSize: 12, color: AppColors.primary,
+                  fontWeight: FontWeight.w600)),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_forward,
+                  size: 12, color: AppColors.primary),
+              ]),
             ])),
           ),
         ],
@@ -578,23 +595,17 @@ class _CompanyLogo extends StatelessWidget {
   final double size;
   const _CompanyLogo({required this.letter, required this.size});
 
-  Color get _bg {
-    const map = {
-      'G': Color(0xFF4285F4), 'M': Color(0xFF00A4EF), 'A': Color(0xFFFF9900),
-      'F': Color(0xFF1877F2), 'T': Color(0xFF1DA1F2), 'L': Color(0xFF0A66C2),
-    };
-    return map[letter.toUpperCase()] ?? AppColors.primary;
-  }
-
   @override
   Widget build(BuildContext context) => Container(
     width: size, height: size,
     decoration: BoxDecoration(
-      color: _bg.withOpacity(0.1), borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: _bg.withOpacity(0.2))),
+      color: AppColors.primaryLight,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.primary.withOpacity(0.2))),
     alignment: Alignment.center,
     child: Text(letter.toUpperCase(), style: GoogleFonts.inter(
-      fontSize: size * 0.45, fontWeight: FontWeight.w900, color: _bg)));
+      fontSize: size * 0.45, fontWeight: FontWeight.w900,
+      color: AppColors.primary)));
 }
 
 class _FullApplyButton extends StatefulWidget {
@@ -622,9 +633,9 @@ class _FullApplyButtonState extends State<_FullApplyButton> {
     if (!mounted) return;
     setState(() => _loading = false);
     final msgs = {
-      true:         ('✅ Applied! Provider will be notified.', AppColors.emerald),
+      true:         ('Applied. The provider will be notified.', AppColors.emerald),
       'already':    ('Already applied to this job.', AppColors.textSecond),
-      'low_match':  ('Match score < 40%. Update your profile.', AppColors.amber),
+      'low_match':  ('Match score below 40%. Update your profile.', AppColors.amber),
     };
     final m = msgs[r] ?? ('Error. Try again.', AppColors.red);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -684,20 +695,20 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              _QuickChip('✅ Verified', _verifiedOnly,
+              _QuickChip('Verified', _verifiedOnly,
                 () => setState(() => _verifiedOnly = !_verifiedOnly)),
-              _QuickChip('🏢 Org Verified', _orgVerifiedOnly,
+              _QuickChip('Org Verified', _orgVerifiedOnly,
                 () => setState(() => _orgVerifiedOnly = !_orgVerifiedOnly)),
-              _QuickChip('⭐ Trust', _sortBy == 'trust',
+              _QuickChip('Trust', _sortBy == 'trust',
                 () => setState(() => _sortBy = 'trust')),
-              _QuickChip('🏆 Most Referrals', _sortBy == 'referrals',
+              _QuickChip('Most Referrals', _sortBy == 'referrals',
                 () => setState(() => _sortBy = 'referrals')),
-              _QuickChip('⚡ Fastest Response', _sortBy == 'response',
+              _QuickChip('Fastest Response', _sortBy == 'response',
                 () => setState(() => _sortBy = 'response')),
             ]))),
 
         Expanded(child: providers.isEmpty
-          ? const EmptyState(emoji: '👥', title: 'No providers found',
+          ? const EmptyState(icon: Icons.group_outlined, title: 'No providers found',
               subtitle: 'Try different filters')
           : ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -747,9 +758,14 @@ class ProviderDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.goldLight, borderRadius: BorderRadius.circular(20)),
-                child: Text('${provider.badge!.emoji} ${provider.badge!.label} Referrer',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600,
-                    color: AppColors.gold))),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.workspace_premium_outlined,
+                    size: 14, color: AppColors.gold),
+                  const SizedBox(width: 4),
+                  Text('${provider.badge!.label} Referrer',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600,
+                      color: AppColors.gold)),
+                ])),
             ])),
           ]),
           if (provider.orgVerified) ...[
@@ -835,16 +851,22 @@ class NotificationsScreen extends StatelessWidget {
             TextButton(onPressed: prov.markAllNotifsRead, child: const Text('Mark all read')),
         ]),
       body: notifs.isEmpty
-          ? const EmptyState(emoji: '🔔', title: 'No notifications yet',
-              subtitle: 'Referral updates, application status changes will appear here')
+          ? const EmptyState(icon: Icons.notifications_none_outlined,
+              title: 'No notifications yet',
+              subtitle: 'Referral updates and application status changes will appear here')
           : ListView.separated(
               padding: const EdgeInsets.all(16), itemCount: notifs.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (ctx, i) {
                 final n = notifs[i];
                 const icons = {
-                  'application': '📋', 'status': '🔔',
-                  'message': '💬', 'referral': '✅', 'match': '🎯'};
+                  'application': Icons.assignment_outlined,
+                  'status':      Icons.notifications_outlined,
+                  'message':     Icons.chat_bubble_outline,
+                  'referral':    Icons.check_circle_outline,
+                  'match':       Icons.gps_fixed,
+                };
+                final iconData = icons[n.type] ?? Icons.notifications_outlined;
                 return GestureDetector(
                   onTap: () {
                     prov.markNotifRead(n.id);
@@ -856,9 +878,16 @@ class NotificationsScreen extends StatelessWidget {
                       color: n.read ? Colors.white : AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: n.read ? AppColors.border : AppColors.primary.withOpacity(0.2))),
+                        color: n.read ? AppColors.border : AppColors.primary.withOpacity(0.3))),
                     child: Row(children: [
-                      Text(icons[n.type] ?? '🔔', style: const TextStyle(fontSize: 22)),
+                      Container(
+                        width: 36, height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          shape: BoxShape.circle),
+                        alignment: Alignment.center,
+                        child: Icon(iconData, size: 18, color: AppColors.primary),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(n.text, style: GoogleFonts.inter(
@@ -895,8 +924,15 @@ class _OrgVerifyScreenState extends State<OrgVerifyScreen> {
     body: Padding(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('🏢', style: TextStyle(fontSize: 48)),
-        const SizedBox(height: 12),
+        Container(
+          width: 56, height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(14)),
+          alignment: Alignment.center,
+          child: const Icon(Icons.domain_outlined,
+            size: 28, color: AppColors.primary)),
+        const SizedBox(height: 14),
         Text('Get Org Verified', style: GoogleFonts.inter(
           fontSize: 22, fontWeight: FontWeight.w800)),
         Text('Enter your work email to receive a verification code.',
@@ -977,7 +1013,7 @@ class _OrgVerifyScreenState extends State<OrgVerifyScreen> {
     final r = await context.read<AppProvider>()
         .verifyOrgEmailOtp(_email.text.trim(), _otp.text.trim());
     setState(() => _verifying = false);
-    if (r.success) setState(() => _success = '${r.companyName ?? "Organisation"} verified! 🎉 Your profile now shows the Org Verified badge.');
+    if (r.success) setState(() => _success = '${r.companyName ?? "Organisation"} verified. Your profile now shows the Org Verified badge.');
     else setState(() => _error = r.error);
   }
 }

@@ -70,18 +70,21 @@ class _AuthScreenState extends State<AuthScreen>
           margin: const EdgeInsets.symmetric(horizontal: 24),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: AppColors.bg, borderRadius: BorderRadius.circular(12)),
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
           child: TabBar(
             controller: _tab,
             indicator: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(10),
-              boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.08), blurRadius: 4,
-                offset: const Offset(0, 1))]),
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(10),
+            ),
             indicatorSize: TabBarIndicatorSize.tab,
-            labelColor: AppColors.textPrimary,
-            unselectedLabelColor: AppColors.textHint,
+            labelColor: Colors.white,
+            unselectedLabelColor: AppColors.textSecond,
             labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+            unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
             dividerColor: Colors.transparent,
             tabs: const [Tab(text: 'Sign In'), Tab(text: 'Sign Up')],
           ),
@@ -234,12 +237,14 @@ class _SignUpFormState extends State<_SignUpForm> {
             // Role selector
             Row(children: [
               RoleChip(
-                label: '\u{1F50D} Job Seeker',
+                icon: Icons.person_search_outlined,
+                label: 'Job Seeker',
                 selected: _role == UserRole.seeker,
                 onTap: () => setState(() => _role = UserRole.seeker)),
               const SizedBox(width: 10),
               RoleChip(
-                label: '\u{1F91D} Provider',
+                icon: Icons.handshake_outlined,
+                label: 'Provider',
                 selected: _role == UserRole.provider,
                 onTap: () => setState(() => _role = UserRole.provider)),
             ]),

@@ -64,23 +64,24 @@ class ProviderCard extends StatelessWidget {
       const SizedBox(height: 8),
 
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        _StatItem('\u2705', '${provider.referralsMade}', 'Referrals'),
-        _StatItem('\u{1F3AF}', '${provider.successRate}%', 'Success'),
-        _StatItem('\u26A1', provider.responseTime, 'Response'),
-        _StatItem('\u{1F4CB}', '${provider.totalJobsPosted}', 'Jobs'),
+        _StatItem(Icons.handshake_outlined, '${provider.referralsMade}', 'Referrals'),
+        _StatItem(Icons.gps_fixed, '${provider.successRate}%', 'Success'),
+        _StatItem(Icons.bolt_outlined, provider.responseTime, 'Response'),
+        _StatItem(Icons.work_outline, '${provider.totalJobsPosted}', 'Jobs'),
       ]),
     ]),
   );
 }
 
 class _StatItem extends StatelessWidget {
-  final String emoji, value, label;
-  const _StatItem(this.emoji, this.value, this.label);
+  final IconData icon;
+  final String value, label;
+  const _StatItem(this.icon, this.value, this.label);
   @override
   Widget build(BuildContext context) => Column(children: [
     Row(mainAxisSize: MainAxisSize.min, children: [
-      Text(emoji, style: const TextStyle(fontSize: 11)),
-      const SizedBox(width: 3),
+      Icon(icon, size: 12, color: AppColors.textSecond),
+      const SizedBox(width: 4),
       Text(value, style: GoogleFonts.inter(
         fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
     ]),
@@ -96,6 +97,11 @@ class _BadgePill extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
       color: AppColors.goldLight, borderRadius: BorderRadius.circular(20)),
-    child: Text('${badge.emoji} ${badge.label}', style: GoogleFonts.inter(
-      fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.gold)));
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.workspace_premium_outlined,
+        size: 12, color: AppColors.gold),
+      const SizedBox(width: 4),
+      Text(badge.label, style: GoogleFonts.inter(
+        fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.gold)),
+    ]));
 }
