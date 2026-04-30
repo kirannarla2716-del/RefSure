@@ -78,7 +78,7 @@ class _ShellScaffold extends StatelessWidget {
   static const _seekerItems = [
     BottomNavigationBarItem(icon: Icon(Icons.home_outlined),   activeIcon: Icon(Icons.home),       label: 'Home'),
     BottomNavigationBarItem(icon: Icon(Icons.work_outline),    activeIcon: Icon(Icons.work),       label: 'Jobs'),
-    BottomNavigationBarItem(icon: Icon(Icons.people_outline),  activeIcon: Icon(Icons.people),     label: 'Providers'),
+    BottomNavigationBarItem(icon: Icon(Icons.people_outline),  activeIcon: Icon(Icons.people),     label: 'Referrers'),
     BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), activeIcon: Icon(Icons.assignment), label: 'Applied'),
     BottomNavigationBarItem(icon: Icon(Icons.person_outline),  activeIcon: Icon(Icons.person),     label: 'Profile'),
   ];

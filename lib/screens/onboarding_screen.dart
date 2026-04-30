@@ -1,21 +1,17 @@
-// lib/screens/onboarding_screen.dart — v2.0
-// Advanced onboarding: LinkedIn / CV upload / Manual + Org email OTP
+// lib/screens/onboarding_screen.dart
+//
+// Two-step onboarding:
+//   1. Role selection — Job Seeker or Referrer.
+//   2. Profile sheet  — first name, last name, email, organisation, CV.
+//      CV is mandatory for Job Seekers, optional for Referrers.
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../models/models.dart';
+import '../core/enums/enums.dart';
+import '../design_system/design_system.dart';
 import '../providers/app_provider.dart';
-import '../utils/theme.dart';
-import '../widgets/common.dart';
-
-const _skillOptions = [
-  'React','Node.js','Python','Java','Go','TypeScript','AWS','GCP','Azure',
-  'SQL','MongoDB','System Design','Product Strategy','Data Analysis',
-  'Machine Learning','Kubernetes','Docker','Spring Boot','Kafka','Flutter',
-  'iOS','Android','Leadership','Agile','UX Design','Finance','Marketing',
-  'Django','FastAPI','Redis','GraphQL','Microservices','DevOps','Terraform',
-];
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,495 +20,299 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  int _step = 0;                          // 0=source, 1=profile, 2=skills, 3=details, 4=orgVerify
-  OnboardingSource _source = OnboardingSource.manual;
+  int _step = 0; // 0 = role, 1 = details
+  UserRole? _role;
 
-  // Profile fields
-  final _title    = TextEditingController();
-  final _company  = TextEditingController();
-  final _location = TextEditingController();
-  final _bio      = TextEditingController();
-  final _salary   = TextEditingController();
-  final _linkedin = TextEditingController();
-  double _exp = 2;
-  String _notice = '30 days';
-  final List<String> _skills = [];
-
-  // Org OTP
-  final _orgEmail = TextEditingController();
-  final _otpCtrl  = TextEditingController();
-  bool _otpSent   = false;
-  bool _otpVerified = false;
-  bool _sendingOtp = false;
-  bool _verifyingOtp = false;
-  String? _otpError;
-
+  final _firstName = TextEditingController();
+  final _lastName  = TextEditingController();
+  final _email     = TextEditingController();
+  final _org       = TextEditingController();
+  String? _resumeUrl;
+  String? _resumeName;
+  bool _uploadingResume = false;
   bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AppProvider>().currentUser;
+    if (user != null) {
+      final parts = user.name.trim().split(RegExp(r'\s+'));
+      if (parts.isNotEmpty) _firstName.text = parts.first;
+      if (parts.length > 1) _lastName.text = parts.sublist(1).join(' ');
+      _email.text = user.email ?? '';
+      _org.text = user.company ?? '';
+      _resumeUrl = user.resumeUrl;
+      if (_resumeUrl != null) _resumeName = 'Resume on file';
+      _role = user.role;
+    }
+  }
 
   @override
   void dispose() {
-    _title.dispose(); _company.dispose(); _location.dispose();
-    _bio.dispose(); _salary.dispose(); _linkedin.dispose();
-    _orgEmail.dispose(); _otpCtrl.dispose();
+    _firstName.dispose(); _lastName.dispose();
+    _email.dispose(); _org.dispose();
     super.dispose();
   }
 
-  int get _totalSteps => _source == OnboardingSource.manual ? 5 : 4;
+  bool get _isReferrer => _role == UserRole.provider;
+  String get _roleLabel => _isReferrer ? 'Referrer' : 'Job Seeker';
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
+    appBar: AppBar(
+      title: const Text('Set up your profile'),
+      leading: _step == 1
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => setState(() => _step = 0))
+          : null,
+    ),
     body: SafeArea(child: Column(children: [
-      // Progress bar
       LinearProgressIndicator(
-        value: (_step + 1) / _totalSteps,
+        value: (_step + 1) / 2,
         backgroundColor: AppColors.border,
         color: AppColors.primary, minHeight: 3),
-
-      // Step indicator
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Row(children: [
-          Text('Step ${_step + 1} of $_totalSteps', style: GoogleFonts.inter(
+          Text('Step ${_step + 1} of 2', style: GoogleFonts.inter(
             fontSize: 12, color: AppColors.textHint)),
-          const Spacer(),
-          if (_otpVerified) Row(children: [
-            const Icon(Icons.verified, size: 14, color: AppColors.emerald),
-            const SizedBox(width: 4),
-            Text('Org Verified', style: GoogleFonts.inter(
-              fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.emerald)),
-          ]),
         ]),
       ),
-
       Expanded(child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-        child: <Widget>[
-          _sourceStep(),
-          _profileStep(),
-          _skillsStep(),
-          _detailsStep(),
-          _orgVerifyStep(),
-        ][_step],
+        child: _step == 0 ? _roleStep() : _detailsStep(),
       )),
     ])),
   );
 
-  // ── Step 0: Onboarding Source ───────────────────────────────
-  Widget _sourceStep() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  // ── Step 1: role selection ──────────────────────────────────
+  Widget _roleStep() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start, children: [
     const SizedBox(height: 8),
-    Text('How would you like to set up?', style: GoogleFonts.inter(
+    Text('How will you use RefSure?', style: GoogleFonts.inter(
       fontSize: 22, fontWeight: FontWeight.w800)),
-    Text('Choose the fastest way to build your profile.', style: GoogleFonts.inter(
-      fontSize: 14, color: AppColors.textSecond)),
+    const SizedBox(height: 4),
+    Text('You can switch this later from your profile.',
+      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
     const SizedBox(height: 24),
 
-    _SourceCard(
-      icon: Icons.business_center_outlined,
-      title: 'Import from LinkedIn',
-      subtitle: 'Paste your LinkedIn profile URL and we will auto-fill your profile.',
-      selected: _source == OnboardingSource.linkedin,
-      onTap: () => setState(() => _source = OnboardingSource.linkedin),
+    _RoleCard(
+      icon: Icons.person_search_outlined,
+      title: 'Job Seeker',
+      subtitle: 'Find jobs and request referrals from trusted insiders.',
+      selected: _role == UserRole.seeker,
+      onTap: () => setState(() => _role = UserRole.seeker),
     ),
     const SizedBox(height: 12),
-
-    _SourceCard(
-      icon: Icons.description_outlined,
-      title: 'Upload Resume / CV',
-      subtitle: 'Upload a PDF or DOCX and we will parse and fill your profile.',
-      selected: _source == OnboardingSource.cvUpload,
-      onTap: () => setState(() => _source = OnboardingSource.cvUpload),
-    ),
-    const SizedBox(height: 12),
-
-    _SourceCard(
-      icon: Icons.edit_outlined,
-      title: 'Fill manually',
-      subtitle: 'Complete the profile yourself, step by step.',
-      selected: _source == OnboardingSource.manual,
-      onTap: () => setState(() => _source = OnboardingSource.manual),
+    _RoleCard(
+      icon: Icons.handshake_outlined,
+      title: 'Referrer',
+      subtitle: 'Share open roles and refer strong candidates from your network.',
+      selected: _role == UserRole.provider,
+      onTap: () => setState(() => _role = UserRole.provider),
     ),
 
     const SizedBox(height: 28),
-
-    // LinkedIn URL field (shown when LinkedIn selected)
-    if (_source == OnboardingSource.linkedin) ...[
-      TextField(controller: _linkedin,
-        decoration: const InputDecoration(
-          labelText: 'LinkedIn Profile URL',
-          hintText: 'https://linkedin.com/in/yourname',
-          prefixIcon: Icon(Icons.link))),
-      const SizedBox(height: 8),
-      _InfoTip('LinkedIn import is in beta. We will pre-fill your title and '
-          'company; you will verify and complete the rest.'),
-      const SizedBox(height: 16),
-    ],
-
-    // CV upload option
-    if (_source == OnboardingSource.cvUpload) ...[
-      _CvUploadButton(),
-      const SizedBox(height: 8),
-      _InfoTip('CV parsing extracts your skills, title, and experience. '
-          'You will review and complete the details.'),
-      const SizedBox(height: 16),
-    ],
-
-    _nextBtn('Continue', () => setState(() => _step = 1)),
+    ElevatedButton(
+      onPressed: _role == null ? null : () => setState(() => _step = 1),
+      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+      child: const Text('Continue')),
   ]);
 
-  // ── Step 1: Basic Profile ────────────────────────────────────
-  Widget _profileStep() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  // ── Step 2: details sheet ───────────────────────────────────
+  Widget _detailsStep() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start, children: [
     const SizedBox(height: 8),
-    Text('Your professional profile', style: GoogleFonts.inter(
+    Text('Tell us about you', style: GoogleFonts.inter(
       fontSize: 22, fontWeight: FontWeight.w800)),
-    Text('Tell providers about your background.', style: GoogleFonts.inter(
-      fontSize: 14, color: AppColors.textSecond)),
-    const SizedBox(height: 20),
-
-    _field('Current / Last Job Title *', _title, 'e.g. Software Engineer'),
-    const SizedBox(height: 14),
-    _field('Current / Last Company', _company, 'e.g. TCS, Infosys, Startup'),
-    const SizedBox(height: 14),
-    _field('Location', _location, 'e.g. Bangalore'),
-    const SizedBox(height: 16),
-
-    Text('Years of Experience', style: GoogleFonts.inter(
-      fontSize: 14, fontWeight: FontWeight.w600)),
     const SizedBox(height: 4),
-    Row(children: [
-      Expanded(child: Slider(
-        value: _exp, min: 0, max: 25, divisions: 25,
-        activeColor: AppColors.primary,
-        onChanged: (v) => setState(() => _exp = v))),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
-        child: Text('${_exp.round()} yrs', style: GoogleFonts.inter(
-          fontWeight: FontWeight.w700, color: AppColors.primary))),
-    ]),
-
-    const SizedBox(height: 24),
-    Row(children: [
-      Expanded(child: OutlinedButton(
-        onPressed: () => setState(() => _step = 0),
-        child: const Text('Back'))),
-      const SizedBox(width: 12),
-      Expanded(child: _nextBtn('Next', () {
-        if (_title.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Please enter your job title')));
-          return;
-        }
-        setState(() => _step = 2);
-      })),
-    ]),
-  ]);
-
-  // ── Step 2: Skills ───────────────────────────────────────────
-  Widget _skillsStep() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 8),
-    Text('Your skills', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800)),
-    Text('Select all that apply — this drives your match score.',
+    Text('Setting up as $_roleLabel.',
       style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
-    const SizedBox(height: 16),
-
-    Wrap(spacing: 8, runSpacing: 8, children: _skillOptions.map((s) {
-      final on = _skills.contains(s);
-      return FilterChip(
-        label: Text(s),
-        selected: on,
-        onSelected: (_) => setState(() => on ? _skills.remove(s) : _skills.add(s)),
-        selectedColor: AppColors.primary, checkmarkColor: Colors.white,
-        backgroundColor: Colors.white,
-        side: BorderSide(color: on ? AppColors.primary : AppColors.border),
-        labelStyle: GoogleFonts.inter(
-          color: on ? Colors.white : AppColors.textSecond,
-          fontWeight: on ? FontWeight.w600 : FontWeight.w400));
-    }).toList()),
-
-    const SizedBox(height: 10),
-    Text('${_skills.length} selected', style: GoogleFonts.inter(
-      fontSize: 12, color: AppColors.textHint)),
-    const SizedBox(height: 24),
-
-    Row(children: [
-      Expanded(child: OutlinedButton(onPressed: () => setState(() => _step = 1),
-        child: const Text('Back'))),
-      const SizedBox(width: 12),
-      Expanded(child: _nextBtn('Next', () {
-        if (_skills.length < 2) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Select at least 2 skills')));
-          return;
-        }
-        setState(() => _step = 3);
-      })),
-    ]),
-  ]);
-
-  // ── Step 3: Additional Details ───────────────────────────────
-  Widget _detailsStep() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 8),
-    Text('A bit more', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800)),
-    Text('Helps providers evaluate you better.', style: GoogleFonts.inter(
-      fontSize: 14, color: AppColors.textSecond)),
     const SizedBox(height: 20),
 
-    DropdownButtonFormField<String>(
-      value: _notice,
-      decoration: const InputDecoration(labelText: 'Notice Period'),
-      items: ['Immediate','15 days','30 days','45 days','60 days','90 days']
-          .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-      onChanged: (v) => setState(() => _notice = v!)),
+    Row(children: [
+      Expanded(child: TextField(controller: _firstName,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'First name', hintText: 'Aanya'))),
+      const SizedBox(width: 12),
+      Expanded(child: TextField(controller: _lastName,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Last name', hintText: 'Sharma'))),
+    ]),
     const SizedBox(height: 14),
-    _field('Expected CTC (LPA)', _salary, 'e.g. 20-30'),
-    const SizedBox(height: 14),
-    TextField(controller: _bio, maxLines: 3,
+
+    TextField(controller: _email,
+      keyboardType: TextInputType.emailAddress,
       decoration: const InputDecoration(
-        labelText: 'Professional Summary (optional)',
-        hintText: 'Brief overview of your background, goals, and what you\'re looking for...')),
+        labelText: 'Email', hintText: 'you@example.com',
+        prefixIcon: Icon(Icons.mail_outline))),
+    const SizedBox(height: 14),
 
-    const SizedBox(height: 24),
+    TextField(controller: _org,
+      textCapitalization: TextCapitalization.words,
+      decoration: const InputDecoration(
+        labelText: 'Organisation',
+        hintText: 'Where you work or last worked',
+        prefixIcon: Icon(Icons.business_outlined))),
+    const SizedBox(height: 18),
 
+    // CV upload — required for seekers, optional for referrers.
     Row(children: [
-      Expanded(child: OutlinedButton(onPressed: () => setState(() => _step = 2),
-        child: const Text('Back'))),
-      const SizedBox(width: 12),
-      Expanded(child: _nextBtn('Next →', () => setState(() => _step = 4))),
+      Text('CV / Resume', style: GoogleFonts.inter(
+        fontSize: 14, fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary)),
+      const SizedBox(width: 6),
+      Text(_isReferrer ? '(optional)' : '(required)',
+        style: GoogleFonts.inter(
+          fontSize: 12, color: AppColors.textHint)),
     ]),
-  ]);
-
-  // ── Step 4: Org Email OTP Verification ───────────────────────
-  Widget _orgVerifyStep() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     const SizedBox(height: 8),
-    Text('Verify your organisation', style: GoogleFonts.inter(
-      fontSize: 22, fontWeight: FontWeight.w800)),
-    Text('Get an "Org Verified" badge — 3× more referral requests.',
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
-    const SizedBox(height: 16),
+    _CvUploadTile(
+      fileName: _resumeName,
+      uploading: _uploadingResume,
+      onTap: _uploadResume,
+    ),
 
-    // Benefits
-    _VerifyBenefit(Icons.workspace_premium_outlined, 'Stand out to providers'),
-    _VerifyBenefit(Icons.shield_outlined, 'Trusted identity, more referrals'),
-    _VerifyBenefit(Icons.bolt_outlined, 'Priority queue in provider dashboard'),
-
-    const SizedBox(height: 20),
-
-    if (!_otpVerified) ...[
-      TextField(
-        controller: _orgEmail,
-        keyboardType: TextInputType.emailAddress,
-        enabled: !_otpSent,
-        decoration: InputDecoration(
-          labelText: 'Work Email',
-          hintText: 'yourname@company.com',
-          prefixIcon: const Icon(Icons.business_outlined),
-          suffixIcon: _otpSent
-              ? const Icon(Icons.check, color: AppColors.emerald) : null)),
-
-      if (_otpError != null) ...[
-        const SizedBox(height: 8),
-        Text(_otpError!, style: GoogleFonts.inter(
-          fontSize: 12, color: AppColors.red)),
-      ],
-
+    if (_error != null) ...[
       const SizedBox(height: 12),
-
-      if (!_otpSent) ElevatedButton(
-        onPressed: _sendingOtp ? null : _sendOtp,
-        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        child: _sendingOtp
-            ? const SizedBox(width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Text('Send Verification Code')),
-
-      if (_otpSent) ...[
-        const SizedBox(height: 16),
-        TextField(
-          controller: _otpCtrl, keyboardType: TextInputType.number, maxLength: 6,
-          style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700,
-            letterSpacing: 8),
-          textAlign: TextAlign.center,
-          decoration: InputDecoration(
-            labelText: '6-digit OTP',
-            hintText: '• • • • • •',
-            counterText: '',
-            helperText: 'Check your work email inbox',
-            suffixIcon: TextButton(
-              onPressed: _sendingOtp ? null : _sendOtp,
-              child: const Text('Resend')))),
-        const SizedBox(height: 12),
-        ElevatedButton(
-          onPressed: _verifyingOtp ? null : _verifyOtp,
-          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: _verifyingOtp
-              ? const SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Verify Code')),
-      ],
-    ],
-
-    if (_otpVerified) ...[
       Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppColors.emeraldLight, borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.emerald.withOpacity(0.3))),
+          color: AppColors.redLight,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.red.withOpacity(0.3))),
         child: Row(children: [
-          const Icon(Icons.verified, color: AppColors.emerald, size: 28),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Organisation Verified', style: GoogleFonts.inter(
-              fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.emerald)),
-            Text('Your profile now shows the Org Verified badge.',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.emerald.withOpacity(0.8))),
-          ])),
+          const Icon(Icons.error_outline, size: 16, color: AppColors.red),
+          const SizedBox(width: 8),
+          Expanded(child: Text(_error!, style: GoogleFonts.inter(
+            fontSize: 12, color: AppColors.red))),
         ])),
     ],
 
     const SizedBox(height: 24),
-
-    Row(children: [
-      Expanded(child: OutlinedButton(
-        onPressed: () => setState(() => _step = 3),
-        child: const Text('Back'))),
-      const SizedBox(width: 12),
-      Expanded(child: ElevatedButton(
-        onPressed: _saving ? null : _finish,
-        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-        child: _saving
-            ? const SizedBox(width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(_otpVerified ? 'Complete Setup' : 'Skip & Complete'))),
-    ]),
+    ElevatedButton(
+      onPressed: _saving ? null : _finish,
+      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+      child: _saving
+          ? const SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : const Text('Finish setup')),
   ]);
 
-  // ── Helpers ────────────────────────────────────────────────
+  // ── Actions ─────────────────────────────────────────────────
 
-  Widget _field(String label, TextEditingController ctrl, String hint) =>
-    TextField(controller: ctrl, decoration: InputDecoration(labelText: label, hintText: hint));
-
-  Widget _nextBtn(String label, VoidCallback onTap) => ElevatedButton(
-    onPressed: onTap,
-    style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-    child: Text(label));
-
-  Future<void> _sendOtp() async {
-    if (_orgEmail.text.trim().isEmpty) {
-      setState(() => _otpError = 'Please enter your work email');
-      return;
-    }
-    final prov = context.read<AppProvider>();
-    if (!prov.isOrgEmail(_orgEmail.text.trim())) {
-      setState(() => _otpError = 'Please use a work email (not Gmail, Yahoo, etc.)');
-      return;
-    }
-    setState(() { _sendingOtp = true; _otpError = null; });
-    final result = await prov.sendOrgEmailOtp(_orgEmail.text.trim());
-    setState(() { _sendingOtp = false; });
-    if (result.success) {
-      setState(() { _otpSent = true; });
-    } else {
-      setState(() => _otpError = result.error);
-    }
+  Future<void> _uploadResume() async {
+    if (_uploadingResume) return;
+    setState(() { _uploadingResume = true; _error = null; });
+    final url = await context.read<AppProvider>().uploadResume();
+    if (!mounted) return;
+    setState(() {
+      _uploadingResume = false;
+      if (url != null) {
+        _resumeUrl = url;
+        _resumeName = 'Resume uploaded';
+      } else {
+        _error = 'Could not upload resume. Try again.';
+      }
+    });
   }
 
-  Future<void> _verifyOtp() async {
-    if (_otpCtrl.text.trim().length != 6) {
-      setState(() => _otpError = 'Enter the 6-digit code');
-      return;
+  String? _validate() {
+    if (_firstName.text.trim().isEmpty) return 'Enter your first name.';
+    if (_lastName.text.trim().isEmpty)  return 'Enter your last name.';
+    if (_email.text.trim().isEmpty || !_email.text.contains('@')) {
+      return 'Enter a valid email.';
     }
-    setState(() { _verifyingOtp = true; _otpError = null; });
-    final result = await context.read<AppProvider>()
-        .verifyOrgEmailOtp(_orgEmail.text.trim(), _otpCtrl.text.trim());
-    setState(() { _verifyingOtp = false; });
-    if (result.success) {
-      setState(() { _otpVerified = true; });
-    } else {
-      setState(() => _otpError = result.error);
+    if (_org.text.trim().isEmpty) return 'Enter your organisation.';
+    if (!_isReferrer && _resumeUrl == null) {
+      return 'Job Seekers need to upload a CV to continue.';
     }
+    return null;
   }
 
   Future<void> _finish() async {
-    setState(() => _saving = true);
+    final problem = _validate();
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
 
     final prov = context.read<AppProvider>();
+    final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}';
 
-    // Build headline
-    String headline = _title.text.trim();
-    if (_exp.round() > 0) headline += ' · ${_exp.round()} yrs exp';
+    final updates = <String, dynamic>{
+      'role':            _role!.name,
+      'name':            fullName,
+      'email':           _email.text.trim(),
+      'company':         _org.text.trim(),
+      'currentCompany':  _org.text.trim(),
+      'headline':        _isReferrer
+          ? 'Referrer at ${_org.text.trim()}'
+          : 'Looking for opportunities',
+      'profileComplete': _isReferrer ? 70 : 80,
+      'activelyLooking': !_isReferrer,
+    };
+    if (_resumeUrl != null) updates['resumeUrl'] = _resumeUrl;
 
-    await prov.updateProfile({
-      'title':           _title.text.trim(),
-      'company':         _company.text.trim(),
-      'location':        _location.text.trim().isEmpty ? 'India' : _location.text.trim(),
-      'experience':      _exp.round(),
-      'skills':          _skills,
-      'bio':             _bio.text.trim(),
-      'noticePeriod':    _notice,
-      'expectedSalary':  _salary.text.trim(),
-      'activelyLooking': true,
-      'profileComplete': _computeCompleteness(),
-      'headline':        headline,
-      'onboardingSource': _source.name,
-      if (_linkedin.text.trim().isNotEmpty) 'linkedinUrl': _linkedin.text.trim(),
-    });
+    await prov.updateProfile(updates);
+    if (_role != prov.currentUser?.role) {
+      await prov.setActiveRole(_role!);
+    }
 
     if (!mounted) return;
+    setState(() => _saving = false);
     context.go('/');
-  }
-
-  int _computeCompleteness() {
-    int p = 30; // Base for being signed up
-    if (_title.text.isNotEmpty)    p += 15;
-    if (_company.text.isNotEmpty)  p += 10;
-    if (_location.text.isNotEmpty) p += 5;
-    if (_skills.length >= 3)       p += 15;
-    if (_bio.text.isNotEmpty)      p += 10;
-    if (_salary.text.isNotEmpty)   p += 5;
-    if (_otpVerified)              p += 10;
-    return p.clamp(0, 100);
   }
 }
 
 // ── Sub-widgets ────────────────────────────────────────────────
 
-class _SourceCard extends StatelessWidget {
+class _RoleCard extends StatelessWidget {
   final IconData icon;
-  final String title, subtitle;
+  final String title;
+  final String subtitle;
   final bool selected;
   final VoidCallback onTap;
-  const _SourceCard({required this.icon, required this.title,
-    required this.subtitle, required this.selected, required this.onTap});
+  const _RoleCard({
+    required this.icon, required this.title,
+    required this.subtitle, required this.selected, required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: selected ? AppColors.primaryLight : Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: selected ? AppColors.primary : AppColors.border,
           width: selected ? 2 : 1)),
       child: Row(children: [
         Container(
-          width: 40, height: 40,
+          width: 44, height: 44,
           decoration: BoxDecoration(
             color: selected ? Colors.white : AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(10)),
+            borderRadius: BorderRadius.circular(12)),
           alignment: Alignment.center,
-          child: Icon(icon, size: 20, color: AppColors.primary),
-        ),
+          child: Icon(icon, size: 22, color: AppColors.primary)),
         const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: GoogleFonts.inter(
-            fontSize: 14, fontWeight: FontWeight.w700,
+            fontSize: 15, fontWeight: FontWeight.w700,
             color: selected ? AppColors.primary : AppColors.textPrimary)),
+          const SizedBox(height: 2),
           Text(subtitle, style: GoogleFonts.inter(
-            fontSize: 12, color: AppColors.textSecond)),
+            fontSize: 12, color: AppColors.textSecond, height: 1.4)),
         ])),
         if (selected)
           const Icon(Icons.check_circle, color: AppColors.primary),
@@ -521,85 +321,50 @@ class _SourceCard extends StatelessWidget {
   );
 }
 
-class _InfoTip extends StatelessWidget {
-  final String text;
-  const _InfoTip(this.text);
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Icon(Icons.info_outline, size: 14, color: AppColors.primary),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: GoogleFonts.inter(
-        fontSize: 12, color: AppColors.primary))),
-    ]),
-  );
-}
-
-class _CvUploadButton extends StatefulWidget {
-  @override
-  State<_CvUploadButton> createState() => _CvUploadButtonState();
-}
-
-class _CvUploadButtonState extends State<_CvUploadButton> {
-  bool _uploading = false;
-  String? _fileName;
+class _CvUploadTile extends StatelessWidget {
+  final String? fileName;
+  final bool uploading;
+  final VoidCallback onTap;
+  const _CvUploadTile({
+    required this.fileName, required this.uploading, required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-    OutlinedButton.icon(
-      onPressed: _uploading ? null : _upload,
-      icon: _uploading
-          ? const SizedBox(width: 16, height: 16,
+  Widget build(BuildContext context) {
+    final hasFile = fileName != null;
+    return GestureDetector(
+      onTap: uploading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: hasFile ? AppColors.emeraldLight : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: hasFile ? AppColors.emerald.withOpacity(0.4)
+                : AppColors.border)),
+        child: Row(children: [
+          if (uploading)
+            const SizedBox(width: 18, height: 18,
               child: CircularProgressIndicator(strokeWidth: 2))
-          : const Icon(Icons.upload_file),
-      label: Text(_uploading ? 'Uploading...'
-          : _fileName != null ? 'Uploaded: $_fileName'
-          : 'Choose PDF or DOCX'),
-      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48))),
-    if (_fileName != null) ...[
-      const SizedBox(height: 6),
-      Row(children: [
-        const Icon(Icons.check_circle, size: 14, color: AppColors.emerald),
-        const SizedBox(width: 6),
-        Text('CV uploaded successfully', style: GoogleFonts.inter(
-          fontSize: 12, color: AppColors.emerald)),
-      ]),
-    ],
-  ]);
-
-  Future<void> _upload() async {
-    setState(() => _uploading = true);
-    final url = await context.read<AppProvider>().uploadResume();
-    setState(() {
-      _uploading = false;
-      if (url != null) _fileName = 'Resume uploaded';
-    });
-    if (!mounted) return;
-    if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Upload failed. Try again.')));
-    }
+          else
+            Icon(hasFile ? Icons.check_circle_outline : Icons.upload_file,
+              size: 20,
+              color: hasFile ? AppColors.emerald : AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(child: Text(
+            uploading
+                ? 'Uploading…'
+                : (fileName ?? 'Upload PDF or DOCX'),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: hasFile ? AppColors.emerald : AppColors.textPrimary,
+              fontWeight: FontWeight.w600))),
+          if (hasFile && !uploading)
+            Text('Replace', style: GoogleFonts.inter(
+              fontSize: 12, color: AppColors.primary,
+              fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
   }
-}
-
-class _VerifyBenefit extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _VerifyBenefit(this.icon, this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Row(children: [
-      Container(
-        width: 28, height: 28,
-        decoration: const BoxDecoration(
-          color: AppColors.primaryLight, shape: BoxShape.circle),
-        alignment: Alignment.center,
-        child: Icon(icon, size: 14, color: AppColors.primary)),
-      const SizedBox(width: 10),
-      Text(text, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
-    ]));
 }

@@ -157,9 +157,9 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12), child: JobCard(job: j))),
             const SizedBox(height: 20),
 
-            // ── Top providers ──────────────────────────────
+            // ── Top referrers ──────────────────────────────
             SectionHeader(
-              title: 'Top Providers',
+              title: 'Top Referrers',
               action: TextButton(onPressed: () => context.push('/providers'),
                 child: const Text('See all'))),
             const SizedBox(height: 10),
@@ -681,7 +681,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Referral Providers')),
+      appBar: AppBar(title: const Text('Referrers')),
       body: Column(children: [
         Container(color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16,8,16,10),
@@ -708,7 +708,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
             ]))),
 
         Expanded(child: providers.isEmpty
-          ? const EmptyState(icon: Icons.group_outlined, title: 'No providers found',
+          ? const EmptyState(icon: Icons.group_outlined, title: 'No referrers found',
               subtitle: 'Try different filters')
           : ListView.separated(
               padding: const EdgeInsets.all(16),

@@ -233,6 +233,22 @@ class AppProvider extends ChangeNotifier {
     await _db.updateUser(_currentUser!.id, data);
   }
 
+  /// Switches the user between Job Seeker and Referrer. Persists the new role
+  /// to Firestore and rebuilds the role-scoped subscriptions so the rest of
+  /// the app sees the right data immediately.
+  Future<void> setActiveRole(UserRole role) async {
+    if (_currentUser == null || _activeRole == role) return;
+    _activeRole = role;
+    notifyListeners();
+    await _db.updateUser(_currentUser!.id, {'role': role.name});
+    // Tear down role-scoped streams and rebuild for the new role.
+    for (final s in _subs) { unawaited(s.cancel()); }
+    _subs.clear();
+    _myApps = [];
+    _providerApps = [];
+    await _loadUserData(_currentUser!.id);
+  }
+
   Future<String?> uploadResume() async {
     if (_currentUser == null) return null;
     final url = await _storage.uploadResumeFile(_currentUser!.id);
