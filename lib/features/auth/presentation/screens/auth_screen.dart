@@ -211,8 +211,10 @@ class _SignUpFormState extends State<_SignUpForm> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _pw = TextEditingController();
-  UserRole _role = UserRole.seeker;
   bool _obscure = true;
+
+  // Role gets chosen during onboarding; sign-up just creates the account.
+  static const _defaultRole = UserRole.seeker;
 
   @override
   void dispose() {
@@ -233,22 +235,6 @@ class _SignUpFormState extends State<_SignUpForm> {
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             if (error != null) ErrorBanner(error),
-
-            // Role selector
-            Row(children: [
-              RoleChip(
-                icon: Icons.person_search_outlined,
-                label: 'Job Seeker',
-                selected: _role == UserRole.seeker,
-                onTap: () => setState(() => _role = UserRole.seeker)),
-              const SizedBox(width: 10),
-              RoleChip(
-                icon: Icons.handshake_outlined,
-                label: 'Provider',
-                selected: _role == UserRole.provider,
-                onTap: () => setState(() => _role = UserRole.provider)),
-            ]),
-            const SizedBox(height: 16),
 
             TextField(controller: _name,
               textCapitalization: TextCapitalization.words,
@@ -279,7 +265,8 @@ class _SignUpFormState extends State<_SignUpForm> {
             const OrDivider(),
             const SizedBox(height: 16),
             GoogleSignInButton(onPressed: loading ? () {} : () {
-              context.read<AuthBloc>().add(GoogleSignInRequested(role: _role));
+              context.read<AuthBloc>().add(
+                const GoogleSignInRequested(role: _defaultRole));
             }),
           ]),
         );
@@ -304,7 +291,7 @@ class _SignUpFormState extends State<_SignUpForm> {
       name: _name.text.trim(),
       email: _email.text.trim(),
       password: _pw.text,
-      role: _role,
+      role: _defaultRole,
     ));
   }
 }

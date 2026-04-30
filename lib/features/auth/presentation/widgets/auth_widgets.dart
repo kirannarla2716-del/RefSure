@@ -52,35 +52,3 @@ class GoogleSignInButton extends StatelessWidget {
     ),
   );
 }
-
-class RoleChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const RoleChip({super.key,
-    required this.icon, required this.label,
-    required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Expanded(child: GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primaryLight : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
-          width: selected ? 2 : 1)),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(icon, size: 16,
-          color: selected ? AppColors.primary : AppColors.textSecond),
-        const SizedBox(width: 6),
-        Text(label, style: GoogleFonts.inter(
-          fontSize: 13, fontWeight: FontWeight.w600,
-          color: selected ? AppColors.primary : AppColors.textSecond)),
-      ]),
-    ),
-  ));
-}

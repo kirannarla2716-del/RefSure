@@ -165,6 +165,7 @@ class AppUser {
   }
 
   AppUser copyWith({
+    UserRole? role,
     String? name, String? bio, String? headline, String? photoUrl,
     bool? activelyLooking, int? profileComplete, List<String>? skills,
     String? noticePeriod, String? expectedSalary, String? orgEmail,
@@ -172,7 +173,8 @@ class AppUser {
     String? company, String? title, String? location, int? experience,
     List<String>? preferredRoles, String? education,
   }) => AppUser(
-    id: id, role: role, name: name ?? this.name, headline: headline ?? this.headline,
+    id: id, role: role ?? this.role, name: name ?? this.name,
+    headline: headline ?? this.headline,
     company: company ?? this.company, verified: verified,
     orgVerified: orgVerified ?? this.orgVerified, title: title ?? this.title,
     location: location ?? this.location, experience: experience ?? this.experience,

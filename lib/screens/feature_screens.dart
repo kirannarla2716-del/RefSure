@@ -211,7 +211,7 @@ class _OverviewTab extends StatelessWidget {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Get Org Verified Badge', style: GoogleFonts.inter(
                 fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-              Text('Builds trust. Seekers prefer verified providers.',
+              Text('Builds trust. Seekers prefer verified referrers.',
                 style: GoogleFonts.inter(fontSize: 11, color: Colors.white70)),
             ])),
             const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
@@ -1091,11 +1091,14 @@ class ProfileScreen extends StatelessWidget {
     final user = prov.currentUser;
     if (user == null) return const LoadingSpinner();
 
+    final isReferrer = prov.isProvider;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('My Profile'),
         actions: [
           IconButton(icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit profile',
             onPressed: () => context.push('/edit-profile')),
         ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
@@ -1125,44 +1128,56 @@ class ProfileScreen extends StatelessWidget {
 
         const SizedBox(height: 12),
 
+        // ── Role switcher ─────────────────────────────────────
+        _RoleSwitcherCard(
+          activeRole: prov.activeRole,
+          onSwitch: (role) => _confirmRoleSwitch(context, role)),
+
+        const SizedBox(height: 12),
+
         // Info
         SectionCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Details', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
-          _InfoLine(Icons.work_outline, user.title.isEmpty ? 'Add job title' : user.title),
-          _InfoLine(Icons.business_outlined, user.company ?? 'Add company'),
-          _InfoLine(Icons.location_on_outlined, user.location.isEmpty ? 'Add location' : user.location),
-          _InfoLine(Icons.timer_outlined, '${user.experience} years experience'),
+          _InfoLine(Icons.mail_outline, user.email ?? 'Add email'),
+          _InfoLine(Icons.business_outlined, user.company ?? 'Add organisation'),
+          if (user.title.isNotEmpty)
+            _InfoLine(Icons.work_outline, user.title),
+          if (user.location.isNotEmpty)
+            _InfoLine(Icons.location_on_outlined, user.location),
+          if (user.experience > 0)
+            _InfoLine(Icons.timer_outlined, '${user.experience} years experience'),
           if (user.noticePeriod != null)
             _InfoLine(Icons.schedule_outlined, user.noticePeriod!),
           if (user.expectedSalary != null)
             _InfoLine(Icons.currency_rupee, '${user.expectedSalary} LPA expected'),
           if (user.linkedinUrl != null)
             _InfoLine(Icons.link, user.linkedinUrl!),
-          if (user.resumeUrl != null)
-            _InfoLine(Icons.attach_file, 'Resume uploaded'),
+          _InfoLine(
+            Icons.attach_file,
+            user.resumeUrl != null
+                ? 'Resume uploaded'
+                : (isReferrer ? 'No resume (optional)' : 'No resume yet'),
+          ),
         ])),
 
-        const SizedBox(height: 12),
+        if (user.skills.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SectionCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SectionHeader(title: 'Skills (${user.skills.length})',
+              action: IconButton(icon: const Icon(Icons.edit, size: 16),
+                onPressed: () => context.push('/edit-profile'))),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6,
+              children: user.skills.map((s) => SkillChip(s)).toList()),
+          ])),
+        ],
 
-        // Skills
-        SectionCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SectionHeader(title: 'Skills (${user.skills.length})',
-            action: IconButton(icon: const Icon(Icons.edit, size: 16),
-              onPressed: () => context.push('/edit-profile'))),
-          const SizedBox(height: 8),
-          user.skills.isEmpty
-              ? Text('No skills added', style: GoogleFonts.inter(
-                  fontSize: 13, color: AppColors.textHint))
-              : Wrap(spacing: 6, runSpacing: 6,
-                  children: user.skills.map((s) => SkillChip(s)).toList()),
-        ])),
-
-        // Provider-specific stats
-        if (prov.isProvider) ...[
+        // Referrer-specific stats
+        if (isReferrer) ...[
           const SizedBox(height: 12),
           SectionCard(child: Column(children: [
-            Text('Provider Stats', style: GoogleFonts.inter(
+            Text('Referrer Stats', style: GoogleFonts.inter(
               fontSize: 15, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
@@ -1178,14 +1193,11 @@ class ProfileScreen extends StatelessWidget {
           ])),
         ],
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
         // Sign out
         OutlinedButton.icon(
-          onPressed: () async {
-            await prov.signOut();
-            if (context.mounted) context.go('/auth');
-          },
+          onPressed: () => _confirmSignOut(context),
           icon: const Icon(Icons.logout, size: 16),
           label: const Text('Sign Out'),
           style: OutlinedButton.styleFrom(
@@ -1196,6 +1208,124 @@ class ProfileScreen extends StatelessWidget {
       ]),
     );
   }
+
+  void _confirmRoleSwitch(BuildContext context, UserRole target) {
+    final prov = context.read<AppProvider>();
+    if (prov.activeRole == target) return;
+    final label = target == UserRole.provider ? 'Referrer' : 'Job Seeker';
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Switch to $label?'),
+        content: Text(
+          target == UserRole.provider
+              ? 'You will see the referrer dashboard with candidates and posted jobs.'
+              : 'You will see the job seeker home with jobs and matches.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await prov.setActiveRole(target);
+              if (context.mounted) context.go('/');
+            },
+            child: Text('Switch to $label')),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context) {
+    final prov = context.read<AppProvider>();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will need to sign in again to access your profile.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await prov.signOut();
+              if (context.mounted) context.go('/auth');
+            },
+            child: const Text('Sign Out')),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoleSwitcherCard extends StatelessWidget {
+  final UserRole activeRole;
+  final ValueChanged<UserRole> onSwitch;
+  const _RoleSwitcherCard({required this.activeRole, required this.onSwitch});
+
+  @override
+  Widget build(BuildContext context) => SectionCard(
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Account mode', style: GoogleFonts.inter(
+        fontSize: 15, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 4),
+      Text('Switch between Job Seeker and Referrer at any time.',
+        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecond)),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: _RoleToggle(
+          icon: Icons.person_search_outlined,
+          label: 'Job Seeker',
+          selected: activeRole == UserRole.seeker,
+          onTap: () => onSwitch(UserRole.seeker))),
+        const SizedBox(width: 10),
+        Expanded(child: _RoleToggle(
+          icon: Icons.handshake_outlined,
+          label: 'Referrer',
+          selected: activeRole == UserRole.provider,
+          onTap: () => onSwitch(UserRole.provider))),
+      ]),
+    ]),
+  );
+}
+
+class _RoleToggle extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _RoleToggle({
+    required this.icon, required this.label,
+    required this.selected, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primaryLight : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.border,
+          width: selected ? 2 : 1)),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 16,
+          color: selected ? AppColors.primary : AppColors.textSecond),
+        const SizedBox(width: 8),
+        Text(label, style: GoogleFonts.inter(
+          fontSize: 13, fontWeight: FontWeight.w600,
+          color: selected ? AppColors.primary : AppColors.textSecond)),
+        if (selected) ...[
+          const SizedBox(width: 6),
+          const Icon(Icons.check_circle, size: 14, color: AppColors.primary),
+        ],
+      ]),
+    ),
+  );
 }
 
 class _InfoLine extends StatelessWidget {
@@ -1229,7 +1359,7 @@ class MessagesScreen extends StatelessWidget {
       body: contacts.isEmpty
           ? const EmptyState(icon: Icons.chat_bubble_outline,
               title: 'No conversations',
-              subtitle: 'Message providers to ask about referrals')
+              subtitle: 'Message referrers to ask about open roles')
           : ListView.separated(
               padding: const EdgeInsets.all(16), itemCount: contacts.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
