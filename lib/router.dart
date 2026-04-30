@@ -1,10 +1,13 @@
 // lib/router.dart — v2.0 FIXED
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'core/di/injection.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/screens/auth_screen.dart' as auth_feature;
 import 'providers/app_provider.dart';
-import 'screens/auth_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_screens.dart';
 import 'screens/feature_screens.dart';
@@ -18,7 +21,10 @@ GoRouter buildRouter(AppProvider prov) => GoRouter(
     return null;
   },
   routes: [
-    GoRoute(path: '/auth',        builder: (_, __) => const AuthScreen()),
+    GoRoute(path: '/auth', builder: (_, __) => BlocProvider(
+      create: (_) => getIt<AuthBloc>(),
+      child: const auth_feature.AuthScreen(),
+    )),
     GoRoute(path: '/onboarding',  builder: (_, __) => const OnboardingScreen()),
     GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
     GoRoute(path: '/verify-org',  builder: (_, __) => const OrgVerifyScreen()),
