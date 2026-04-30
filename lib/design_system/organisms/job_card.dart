@@ -168,9 +168,9 @@ class _ApplyButtonState extends State<_ApplyButton> {
     if (!mounted) return;
     setState(() => _applying = false);
     final msgs = {
-      true:         ('\u2705 Applied! Provider will review your profile.', AppColors.emerald),
+      true:         ('Applied. The provider will review your profile.', AppColors.emerald),
       'already':    ('Already applied to this job.', AppColors.textSecond),
-      'low_match':  ('Match score too low (< 40%). Update your profile to qualify.', AppColors.amber),
+      'low_match':  ('Match score too low (below 40%). Update your profile to qualify.', AppColors.amber),
       'error':      ('Something went wrong. Try again.', AppColors.red),
     };
     final m = msgs[r] ?? ('Unexpected result.', AppColors.textSecond);

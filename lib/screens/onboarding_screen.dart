@@ -108,25 +108,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     const SizedBox(height: 24),
 
     _SourceCard(
-      icon: '💼',
+      icon: Icons.business_center_outlined,
       title: 'Import from LinkedIn',
-      subtitle: 'Paste your LinkedIn profile URL — we auto-fill your profile.',
+      subtitle: 'Paste your LinkedIn profile URL and we will auto-fill your profile.',
       selected: _source == OnboardingSource.linkedin,
       onTap: () => setState(() => _source = OnboardingSource.linkedin),
     ),
     const SizedBox(height: 12),
 
     _SourceCard(
-      icon: '📄',
+      icon: Icons.description_outlined,
       title: 'Upload Resume / CV',
-      subtitle: 'Upload PDF or DOCX — we parse and fill your profile.',
+      subtitle: 'Upload a PDF or DOCX and we will parse and fill your profile.',
       selected: _source == OnboardingSource.cvUpload,
       onTap: () => setState(() => _source = OnboardingSource.cvUpload),
     ),
     const SizedBox(height: 12),
 
     _SourceCard(
-      icon: '✏️',
+      icon: Icons.edit_outlined,
       title: 'Fill manually',
       subtitle: 'Complete the profile yourself, step by step.',
       selected: _source == OnboardingSource.manual,
@@ -143,13 +143,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           hintText: 'https://linkedin.com/in/yourname',
           prefixIcon: Icon(Icons.link))),
       const SizedBox(height: 8),
-      Container(padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
-        child: Text(
-          '💡 LinkedIn import is in beta. We\'ll pre-fill your title and company. '
-          'You\'ll verify and complete the rest.',
-          style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary))),
+      _InfoTip('LinkedIn import is in beta. We will pre-fill your title and '
+          'company; you will verify and complete the rest.'),
       const SizedBox(height: 16),
     ],
 
@@ -157,17 +152,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_source == OnboardingSource.cvUpload) ...[
       _CvUploadButton(),
       const SizedBox(height: 8),
-      Container(padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
-        child: Text(
-          '💡 CV parsing extracts your skills, title, and experience. '
-          'You\'ll review and complete the details.',
-          style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary))),
+      _InfoTip('CV parsing extracts your skills, title, and experience. '
+          'You will review and complete the details.'),
       const SizedBox(height: 16),
     ],
 
-    _nextBtn('Continue →', () => setState(() => _step = 1)),
+    _nextBtn('Continue', () => setState(() => _step = 1)),
   ]);
 
   // ── Step 1: Basic Profile ────────────────────────────────────
@@ -208,7 +198,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         onPressed: () => setState(() => _step = 0),
         child: const Text('Back'))),
       const SizedBox(width: 12),
-      Expanded(child: _nextBtn('Next →', () {
+      Expanded(child: _nextBtn('Next', () {
         if (_title.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Please enter your job title')));
@@ -250,7 +240,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       Expanded(child: OutlinedButton(onPressed: () => setState(() => _step = 1),
         child: const Text('Back'))),
       const SizedBox(width: 12),
-      Expanded(child: _nextBtn('Next →', () {
+      Expanded(child: _nextBtn('Next', () {
         if (_skills.length < 2) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Select at least 2 skills')));
@@ -303,9 +293,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     const SizedBox(height: 16),
 
     // Benefits
-    _VerifyBenefit('🏆', 'Stand out to providers'),
-    _VerifyBenefit('🔒', 'Trusted identity, more referrals'),
-    _VerifyBenefit('⚡', 'Priority queue in provider dashboard'),
+    _VerifyBenefit(Icons.workspace_premium_outlined, 'Stand out to providers'),
+    _VerifyBenefit(Icons.shield_outlined, 'Trusted identity, more referrals'),
+    _VerifyBenefit(Icons.bolt_outlined, 'Priority queue in provider dashboard'),
 
     const SizedBox(height: 20),
 
@@ -373,7 +363,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const Icon(Icons.verified, color: AppColors.emerald, size: 28),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Organisation Verified! 🎉', style: GoogleFonts.inter(
+            Text('Organisation Verified', style: GoogleFonts.inter(
               fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.emerald)),
             Text('Your profile now shows the Org Verified badge.',
               style: GoogleFonts.inter(fontSize: 12, color: AppColors.emerald.withOpacity(0.8))),
@@ -394,7 +384,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: _saving
             ? const SizedBox(width: 20, height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(_otpVerified ? 'Complete Setup 🚀' : 'Skip & Complete'))),
+            : Text(_otpVerified ? 'Complete Setup' : 'Skip & Complete'))),
     ]),
   ]);
 
@@ -489,7 +479,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 // ── Sub-widgets ────────────────────────────────────────────────
 
 class _SourceCard extends StatelessWidget {
-  final String icon, title, subtitle;
+  final IconData icon;
+  final String title, subtitle;
   final bool selected;
   final VoidCallback onTap;
   const _SourceCard({required this.icon, required this.title,
@@ -507,7 +498,14 @@ class _SourceCard extends StatelessWidget {
           color: selected ? AppColors.primary : AppColors.border,
           width: selected ? 2 : 1)),
       child: Row(children: [
-        Text(icon, style: const TextStyle(fontSize: 24)),
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(10)),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 20, color: AppColors.primary),
+        ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: GoogleFonts.inter(
@@ -520,6 +518,23 @@ class _SourceCard extends StatelessWidget {
           const Icon(Icons.check_circle, color: AppColors.primary),
       ]),
     ),
+  );
+}
+
+class _InfoTip extends StatelessWidget {
+  final String text;
+  const _InfoTip(this.text);
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Icon(Icons.info_outline, size: 14, color: AppColors.primary),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text, style: GoogleFonts.inter(
+        fontSize: 12, color: AppColors.primary))),
+    ]),
   );
 }
 
@@ -571,13 +586,19 @@ class _CvUploadButtonState extends State<_CvUploadButton> {
 }
 
 class _VerifyBenefit extends StatelessWidget {
-  final String emoji, text;
-  const _VerifyBenefit(this.emoji, this.text);
+  final IconData icon;
+  final String text;
+  const _VerifyBenefit(this.icon, this.text);
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.only(bottom: 10),
     child: Row(children: [
-      Text(emoji, style: const TextStyle(fontSize: 18)),
+      Container(
+        width: 28, height: 28,
+        decoration: const BoxDecoration(
+          color: AppColors.primaryLight, shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: Icon(icon, size: 14, color: AppColors.primary)),
       const SizedBox(width: 10),
       Text(text, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
     ]));

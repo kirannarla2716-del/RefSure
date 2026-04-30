@@ -3,104 +3,119 @@
 import 'package:flutter/material.dart';
 import 'package:refsure/core/enums/enums.dart';
 
+/// Single source of truth for colour tokens.
+///
+/// Palette:
+/// - Background: pure white surfaces with a faint neutral canvas.
+/// - Brand: light sea green for primary actions, accents, and badges.
+/// - Semantics: tuned to coexist with the sea-green brand on a light theme.
 class AppColors {
-  // Brand
-  static const primary      = Color(0xFF0A66C2);   // LinkedIn blue
-  static const primaryLight = Color(0xFFEBF3FA);
-  static const primaryDark  = Color(0xFF004182);
-  static const accent       = Color(0xFF7C3AED);   // Purple accent
-  static const accentLight  = Color(0xFFF3F0FF);
+  // ── Brand ────────────────────────────────────────────────────
+  /// Light sea green — primary brand colour for buttons, links, accents.
+  static const primary      = Color(0xFF20B2AA);
+  /// Hover / pressed state for the primary colour.
+  static const primaryDark  = Color(0xFF178F88);
+  /// 8% tinted surface for selected chips, badges, and subtle highlights.
+  static const primaryLight = Color(0xFFE6F7F6);
+  /// Secondary accent — a deeper teal that pairs with the primary.
+  static const accent       = Color(0xFF0E7C7B);
+  static const accentLight  = Color(0xFFE0F2F1);
 
-  // Surface
-  static const bg           = Color(0xFFF3F2EF);   // LinkedIn bg
+  // ── Surface ──────────────────────────────────────────────────
+  /// App canvas. A near-white with the faintest cool tint so that white
+  /// cards still read as elevated.
+  static const bg           = Color(0xFFF7FAFA);
   static const surface      = Colors.white;
-  static const surfaceHover = Color(0xFFF9F9F9);
-  static const border       = Color(0xFFE0E0E0);
-  static const divider      = Color(0xFFE8E8E8);
+  static const surfaceHover = Color(0xFFF1F7F7);
+  static const border       = Color(0xFFE2E8E8);
+  static const divider      = Color(0xFFEBEFEF);
 
-  // Text
-  static const textPrimary  = Color(0xFF191919);
-  static const textSecond   = Color(0xFF666666);
-  static const textHint     = Color(0xFF999999);
+  // ── Text ─────────────────────────────────────────────────────
+  static const textPrimary  = Color(0xFF1A2A2A);
+  static const textSecond   = Color(0xFF5C6B6B);
+  static const textHint     = Color(0xFF8A9999);
 
-  // Semantic
-  static const emerald      = Color(0xFF057642);
-  static const emeraldLight = Color(0xFFE9F5EE);
+  // ── Semantic ─────────────────────────────────────────────────
+  static const emerald      = Color(0xFF0F8A6A);
+  static const emeraldLight = Color(0xFFE6F4EE);
   static const amber        = Color(0xFFB45309);
   static const amberLight   = Color(0xFFFEF3C7);
-  static const blue         = Color(0xFF0A66C2);
-  static const blueLight    = Color(0xFFEBF3FA);
-  static const red          = Color(0xFFCC1016);
-  static const redLight     = Color(0xFFFFF0F0);
-  static const purple       = Color(0xFF7C3AED);
-  static const purpleLight  = Color(0xFFF3F0FF);
-  static const gold         = Color(0xFFB8860B);
-  static const goldLight    = Color(0xFFFFF8E1);
+  /// Informational tone — kept distinct from primary so banners stand out.
+  static const info         = Color(0xFF1F8CB7);
+  static const infoLight    = Color(0xFFE3F2F8);
+  static const red          = Color(0xFFC03A40);
+  static const redLight     = Color(0xFFFCEEEE);
+  static const purple       = Color(0xFF6D5BD0);
+  static const purpleLight  = Color(0xFFEFEBFA);
+  static const gold         = Color(0xFFAA7C12);
+  static const goldLight    = Color(0xFFFBF3DD);
 
-  // Match band colors
+  // ── Match band colours ───────────────────────────────────────
   static Color matchBg(MatchBand b) => switch (b) {
-    MatchBand.sureShotMatch => const Color(0xFFE9F5EE),
-    MatchBand.excellentMatch => const Color(0xFFEBF3FA),
-    MatchBand.goodToGo      => const Color(0xFFF3F0FF),
-    MatchBand.needsReview   => const Color(0xFFFEF3C7),
-    MatchBand.lowMatch      => const Color(0xFFFFF0F0),
+    MatchBand.sureShotMatch  => emeraldLight,
+    MatchBand.excellentMatch => primaryLight,
+    MatchBand.goodToGo       => purpleLight,
+    MatchBand.needsReview    => amberLight,
+    MatchBand.lowMatch       => redLight,
   };
 
   static Color matchFg(MatchBand b) => switch (b) {
-    MatchBand.sureShotMatch => emerald,
-    MatchBand.excellentMatch => blue,
-    MatchBand.goodToGo      => purple,
-    MatchBand.needsReview   => amber,
-    MatchBand.lowMatch      => red,
+    MatchBand.sureShotMatch  => emerald,
+    MatchBand.excellentMatch => primary,
+    MatchBand.goodToGo       => purple,
+    MatchBand.needsReview    => amber,
+    MatchBand.lowMatch       => red,
   };
 
-  // Status colors
+  // ── Status colours ───────────────────────────────────────────
   static Color statusBg(String s) => switch (s) {
-    'pending'      => const Color(0xFFF3F2EF),
-    'underReview'  => blueLight,
+    'pending'      => bg,
+    'underReview'  => infoLight,
     'strongMatch'  => emeraldLight,
     'needsReview'  => amberLight,
-    'shortlisted'  => purpleLight,
+    'shortlisted'  => primaryLight,
     'referred'     => emeraldLight,
-    'interview'    => blueLight,
-    'hired'        => const Color(0xFFE9F5EE),
+    'interview'    => infoLight,
+    'hired'        => emeraldLight,
     'notSelected'  => redLight,
-    'closed'       => const Color(0xFFF3F2EF),
-    _              => const Color(0xFFF3F2EF),
+    'closed'       => bg,
+    _              => bg,
   };
 
   static Color statusFg(String s) => switch (s) {
     'pending'      => textHint,
-    'underReview'  => blue,
+    'underReview'  => info,
     'strongMatch'  => emerald,
     'needsReview'  => amber,
-    'shortlisted'  => purple,
+    'shortlisted'  => primary,
     'referred'     => emerald,
-    'interview'    => blue,
+    'interview'    => info,
     'hired'        => emerald,
     'notSelected'  => red,
     'closed'       => textHint,
     _              => textHint,
   };
 
+  // ── Work-mode colours ────────────────────────────────────────
   static Color workModeBg(String m) => switch (m) {
     'Remote'  => emeraldLight,
     'Hybrid'  => amberLight,
-    'On-site' => blueLight,
-    _         => const Color(0xFFF3F2EF),
+    'On-site' => primaryLight,
+    _         => bg,
   };
 
   static Color workModeFg(String m) => switch (m) {
     'Remote'  => emerald,
     'Hybrid'  => amber,
-    'On-site' => blue,
+    'On-site' => primary,
     _         => textSecond,
   };
 
+  /// Maps a 0–100 match score to a foreground colour.
   static Color matchScoreColor(int score) {
     if (score >= 90) return emerald;
-    if (score >= 80) return blue;
-    if (score >= 70) return purple;
+    if (score >= 80) return primary;
+    if (score >= 70) return accent;
     if (score >= 60) return amber;
     return red;
   }

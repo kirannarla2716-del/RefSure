@@ -3,7 +3,7 @@
 
 // Theme
 export 'theme/app_colors.dart';
-export 'theme/app_theme.dart';
+export 'theme/app_theme.dart' show buildAppTheme, AppRadius, AppSpacing;
 export 'theme/app_typography.dart';
 
 // Atoms

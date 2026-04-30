@@ -43,11 +43,11 @@ class MatchReport {
   }
 
   static String labelFromBand(MatchBand b) => switch (b) {
-    MatchBand.sureShotMatch => '\u{1F3AF} Sure-shot Match',
-    MatchBand.excellentMatch => '\u{2B50} Excellent Match',
-    MatchBand.goodToGo      => '\u{2705} Good to Go',
-    MatchBand.needsReview   => '\u{26A0}\u{FE0F} Needs Review',
-    MatchBand.lowMatch      => '\u{1F534} Low Match',
+    MatchBand.sureShotMatch  => 'Sure-shot Match',
+    MatchBand.excellentMatch => 'Excellent Match',
+    MatchBand.goodToGo       => 'Good to Go',
+    MatchBand.needsReview    => 'Needs Review',
+    MatchBand.lowMatch       => 'Low Match',
   };
 
   Map<String, dynamic> toMap() => {

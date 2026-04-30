@@ -14,9 +14,14 @@ class UserAvatar extends StatelessWidget {
     this.size = 40, this.showOnlineDot = false});
 
   Color get _bg {
+    // Use design-system tokens so initials avatars stay on-brand.
     const colors = [
-      Color(0xFF0A66C2), Color(0xFF057642), Color(0xFF7C3AED),
-      Color(0xFFB45309), Color(0xFFCC1016), Color(0xFF4F46E5),
+      AppColors.primary,
+      AppColors.accent,
+      AppColors.emerald,
+      AppColors.amber,
+      AppColors.purple,
+      AppColors.info,
     ];
     return name.isEmpty ? colors[0] : colors[name.codeUnitAt(0) % colors.length];
   }

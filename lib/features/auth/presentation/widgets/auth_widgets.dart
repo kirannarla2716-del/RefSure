@@ -40,43 +40,47 @@ class GoogleSignInButton extends StatelessWidget {
   final VoidCallback onPressed;
   const GoogleSignInButton({super.key, required this.onPressed});
   @override
-  Widget build(BuildContext context) => OutlinedButton(
+  Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: onPressed,
+    icon: const Icon(Icons.g_mobiledata, size: 24, color: AppColors.textPrimary),
+    label: Text('Continue with Google', style: GoogleFonts.inter(
+      fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
     style: OutlinedButton.styleFrom(
+      foregroundColor: AppColors.textPrimary,
       minimumSize: const Size.fromHeight(50),
-      side: const BorderSide(color: AppColors.border)),
-    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text('G', style: GoogleFonts.inter(
-        fontSize: 18, fontWeight: FontWeight.w900, color: const Color(0xFF4285F4))),
-      const SizedBox(width: 10),
-      Text('Continue with Google', style: GoogleFonts.inter(
-        fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-    ]),
+      side: const BorderSide(color: AppColors.border),
+    ),
   );
 }
 
 class RoleChip extends StatelessWidget {
+  final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
   const RoleChip({super.key,
-    required this.label, required this.selected, required this.onTap});
+    required this.icon, required this.label,
+    required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) => Expanded(child: GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primaryLight : AppColors.bg,
+        color: selected ? AppColors.primaryLight : Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: selected ? AppColors.primary : AppColors.border,
           width: selected ? 2 : 1)),
-      alignment: Alignment.center,
-      child: Text(label, style: GoogleFonts.inter(
-        fontSize: 13, fontWeight: FontWeight.w600,
-        color: selected ? AppColors.primary : AppColors.textSecond)),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 16,
+          color: selected ? AppColors.primary : AppColors.textSecond),
+        const SizedBox(width: 6),
+        Text(label, style: GoogleFonts.inter(
+          fontSize: 13, fontWeight: FontWeight.w600,
+          color: selected ? AppColors.primary : AppColors.textSecond)),
+      ]),
     ),
   ));
 }
