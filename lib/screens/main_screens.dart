@@ -19,32 +19,9 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
     final user = prov.currentUser;
-    if (user == null) {
-      // Firebase Auth exists but no Firestore profile - show recovery screen
-      return Scaffold(
-        backgroundColor: AppColors.bg,
-        body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.person_off_outlined, size: 64, color: AppColors.textHint),
-          const SizedBox(height: 16),
-          Text('Profile not found', style: GoogleFonts.inter(
-            fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text('Your account exists but profile is missing.',
-            style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecond)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () async {
-              await context.read<AppProvider>().signOut();
-              if (context.mounted) context.go('/auth');
-            },
-            child: const Text('Sign Out & Sign Up Again')),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () => context.go('/onboarding'),
-            child: const Text('Complete Profile Setup')),
-        ])));
-    }
+    if (user == null) return const _ProfileMissingState();
 
+    final metrics  = prov.seekerMetrics;
     final myApps   = prov.myApplications;
     final topJobs  = prov.filteredJobs.take(3).toList();
     final topProvs = prov.providers.take(3).toList();
@@ -54,88 +31,50 @@ class HomeScreen extends StatelessWidget {
       body: CustomScrollView(slivers: [
         SliverAppBar(
           floating: true, backgroundColor: Colors.white, surfaceTintColor: Colors.white,
+          elevation: 0, scrolledUnderElevation: 1,
           title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Hey, ${user.name.split(' ').first}', style: GoogleFonts.inter(
+            Text('Hello, ${user.name.split(' ').first}', style: GoogleFonts.inter(
               fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             Text('Where real referrals happen', style: GoogleFonts.inter(
               fontSize: 11, color: AppColors.textHint)),
           ]),
           actions: [
             IconButton(
+              tooltip: 'Notifications',
               onPressed: () => context.push('/notifications'),
               icon: Stack(children: [
                 const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
                 if (prov.unreadCount > 0) Positioned(right: 0, top: 0,
                   child: Container(width: 8, height: 8,
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
+                    decoration: const BoxDecoration(color: AppColors.red, shape: BoxShape.circle))),
               ])),
             GestureDetector(
-              onTap: () => context.push('/profile'),
+              onTap: () => context.go('/profile'),
               child: Padding(padding: const EdgeInsets.only(right: 16),
                 child: UserAvatar(name: user.name, photoUrl: user.photoUrl, size: 36))),
           ],
         ),
 
-        SliverPadding(padding: const EdgeInsets.all(16),
+        SliverPadding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           sliver: SliverList(delegate: SliverChildListDelegate([
 
             // ── Search ─────────────────────────────────────
-            GestureDetector(
-              onTap: () => context.push('/jobs'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border)),
-                child: Row(children: [
-                  const Icon(Icons.search, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 10),
-                  Text('Search jobs, companies, skills...',
-                    style: GoogleFonts.inter(fontSize: 14, color: AppColors.textHint)),
-                ]))),
-            const SizedBox(height: 14),
+            _SearchBar(onTap: () => context.push('/jobs')),
+            const SizedBox(height: 16),
 
-            // ── Org verify banner ──────────────────────────
-            if (!user.orgVerified) ...[
-              GestureDetector(
-                onTap: () => context.push('/verify-org'),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8)),
-                  child: Row(children: [
-                    const Icon(Icons.verified_user_outlined, color: Colors.white),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Get Org Verified', style: GoogleFonts.inter(
-                        fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                      Text('3x more referral requests with verified badge',
-                        style: GoogleFonts.inter(fontSize: 11, color: Colors.white70)),
-                    ])),
-                    const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
-                  ]))),
-              const SizedBox(height: 14),
-            ],
+            // ── Dashboard ──────────────────────────────────
+            _SeekerDashboard(metrics: metrics,
+              onTap: () => context.push('/applications')),
+            const SizedBox(height: 16),
 
-            // ── Stats ──────────────────────────────────────
-            Row(children: [
-              _statCard('${myApps.length}', 'Applied', AppColors.primary),
-              const SizedBox(width: 8),
-              _statCard(
-                '${myApps.where((a) => a.status == AppStatus.referred).length}',
-                'Referred', AppColors.emerald),
-              const SizedBox(width: 8),
-              _statCard(
-                '${myApps.where((a) => a.status == AppStatus.interview).length}',
-                'Interview', AppColors.accent),
-            ]),
+            // ── Quick actions ──────────────────────────────
+            _QuickActions(),
             const SizedBox(height: 20),
 
             // ── Recent applications ────────────────────────
             if (myApps.isNotEmpty) ...[
               SectionHeader(
-                title: 'My Applications',
+                title: 'Recent applications',
                 action: TextButton(onPressed: () => context.push('/applications'),
                   child: const Text('View all'))),
               const SizedBox(height: 10),
@@ -149,43 +88,218 @@ class HomeScreen extends StatelessWidget {
 
             // ── Hot jobs ───────────────────────────────────
             SectionHeader(
-              title: 'Hot Jobs',
+              title: 'Hot jobs',
               action: TextButton(onPressed: () => context.push('/jobs'),
                 child: const Text('See all'))),
             const SizedBox(height: 10),
-            ...topJobs.map((j) => Padding(
-              padding: const EdgeInsets.only(bottom: 12), child: JobCard(job: j))),
+            if (topJobs.isEmpty)
+              _EmptyMini(text: 'No active jobs right now. Check back soon.')
+            else
+              ...topJobs.map((j) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: JobCard(job: j))),
             const SizedBox(height: 20),
 
             // ── Top referrers ──────────────────────────────
             SectionHeader(
-              title: 'Top Referrers',
+              title: 'Top referrers',
               action: TextButton(onPressed: () => context.push('/providers'),
                 child: const Text('See all'))),
             const SizedBox(height: 10),
-            ...topProvs.map((p) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: ProviderCard(provider: p))),
-            const SizedBox(height: 16),
+            if (topProvs.isEmpty)
+              _EmptyMini(text: 'No referrers yet.')
+            else
+              ...topProvs.map((p) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ProviderCard(provider: p))),
           ])),
         ),
       ]),
     );
   }
+}
 
-  Widget _statCard(String val, String label, Color color) => Expanded(
+class _ProfileMissingState extends StatelessWidget {
+  const _ProfileMissingState();
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppColors.bg,
+    body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.person_off_outlined, size: 64, color: AppColors.textHint),
+      const SizedBox(height: 16),
+      Text('Profile not found', style: GoogleFonts.inter(
+        fontSize: 18, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      Text('Your account exists but profile is missing.',
+        style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecond)),
+      const SizedBox(height: 24),
+      ElevatedButton(
+        onPressed: () async {
+          await context.read<AppProvider>().signOut();
+          if (context.mounted) context.go('/auth');
+        },
+        child: const Text('Sign Out & Sign Up Again')),
+      const SizedBox(height: 12),
+      TextButton(
+        onPressed: () => context.go('/onboarding'),
+        child: const Text('Complete Profile Setup')),
+    ])));
+}
+
+class _SearchBar extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SearchBar({required this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(8),
+        color: Colors.white, borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border)),
-      child: Column(children: [
-        Text(val, style: GoogleFonts.inter(
-          fontSize: 22, fontWeight: FontWeight.w800, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: GoogleFonts.inter(fontSize: 10, color: AppColors.textHint),
-          textAlign: TextAlign.center),
+      child: Row(children: [
+        const Icon(Icons.search, color: AppColors.primary, size: 20),
+        const SizedBox(width: 10),
+        Text('Search jobs, companies, skills',
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textHint)),
       ])));
+}
+
+class _SeekerDashboard extends StatelessWidget {
+  final SeekerMetrics metrics;
+  final VoidCallback onTap;
+  const _SeekerDashboard({required this.metrics, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => SectionCard(
+    onTap: onTap,
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text('Your referrals', style: GoogleFonts.inter(
+          fontSize: 15, fontWeight: FontWeight.w700)),
+        const Spacer(),
+        Text('Total ${metrics.total}', style: GoogleFonts.inter(
+          fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+      ]),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: _MetricTile(
+          icon: Icons.pending_actions_outlined,
+          label: 'Pending',
+          value: metrics.pending,
+          color: AppColors.amber)),
+        const SizedBox(width: 8),
+        Expanded(child: _MetricTile(
+          icon: Icons.trending_up,
+          label: 'Open',
+          value: metrics.open,
+          color: AppColors.primary)),
+        const SizedBox(width: 8),
+        Expanded(child: _MetricTile(
+          icon: Icons.task_alt,
+          label: 'Completed',
+          value: metrics.completed,
+          color: AppColors.emerald)),
+      ]),
+    ]),
+  );
+}
+
+class _MetricTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int value;
+  final Color color;
+  const _MetricTile({
+    required this.icon, required this.label,
+    required this.value, required this.color,
+  });
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+    decoration: BoxDecoration(
+      color: AppColors.bg, borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.border)),
+    child: Column(children: [
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text('$value', style: GoogleFonts.inter(
+          fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+      ]),
+      const SizedBox(height: 2),
+      Text(label, style: GoogleFonts.inter(
+        fontSize: 11, color: AppColors.textSecond, fontWeight: FontWeight.w500)),
+    ]),
+  );
+}
+
+class _QuickActions extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: _QuickActionTile(
+      icon: Icons.work_outline, label: 'Browse jobs',
+      onTap: () => context.push('/jobs'))),
+    const SizedBox(width: 10),
+    Expanded(child: _QuickActionTile(
+      icon: Icons.handshake_outlined, label: 'Find referrers',
+      onTap: () => context.push('/providers'))),
+    const SizedBox(width: 10),
+    Expanded(child: _QuickActionTile(
+      icon: Icons.assignment_outlined, label: 'Applications',
+      onTap: () => context.push('/applications'))),
+  ]);
+}
+
+class _QuickActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickActionTile({
+    required this.icon, required this.label, required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(10),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border)),
+        child: Column(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: AppColors.primary)),
+          const SizedBox(height: 8),
+          Text(label, style: GoogleFonts.inter(
+            fontSize: 11, fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary), textAlign: TextAlign.center),
+        ]),
+      ),
+    ),
+  );
+}
+
+class _EmptyMini extends StatelessWidget {
+  final String text;
+  const _EmptyMini({required this.text});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+    decoration: BoxDecoration(
+      color: Colors.white, borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.border)),
+    alignment: Alignment.center,
+    child: Text(text, style: GoogleFonts.inter(
+      fontSize: 12, color: AppColors.textHint)),
+  );
 }
 
 // ── Jobs Screen ─────────────────────────────────────────────────
@@ -919,8 +1033,33 @@ class _OrgVerifyScreenState extends State<OrgVerifyScreen> {
   String? _error, _success;
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill the work email from the user's profile if they've already
+    // entered an organisation email during onboarding.
+    final user = context.read<AppProvider>().currentUser;
+    final seed = user?.orgEmail ?? user?.email;
+    if (seed != null) _email.text = seed;
+  }
+
+  void _exitVerifyLater() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      context.go('/profile');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Verify Organisation')),
+    appBar: AppBar(
+      title: const Text('Verify Work Email'),
+      actions: [
+        if (_success == null)
+          TextButton(
+            onPressed: _exitVerifyLater,
+            child: const Text('Verify later')),
+      ]),
     body: Padding(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -933,9 +1072,10 @@ class _OrgVerifyScreenState extends State<OrgVerifyScreen> {
           child: const Icon(Icons.domain_outlined,
             size: 28, color: AppColors.primary)),
         const SizedBox(height: 14),
-        Text('Get Org Verified', style: GoogleFonts.inter(
+        Text('Verify your work email', style: GoogleFonts.inter(
           fontSize: 22, fontWeight: FontWeight.w800)),
-        Text('Enter your work email to receive a verification code.',
+        Text('We will send a 6-digit code to your work email and unlock the '
+            'Org Verified badge once confirmed.',
           style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
         const SizedBox(height: 24),
 
@@ -978,6 +1118,10 @@ class _OrgVerifyScreenState extends State<OrgVerifyScreen> {
                 ? const SizedBox(width: 20, height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Text('Verify & Get Badge')),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _sending ? null : _send,
+            child: const Text('Resend code')),
         ],
 
         if (_success != null) ...[

@@ -1117,16 +1117,17 @@ class ProfileScreen extends StatelessWidget {
           ]),
           const SizedBox(height: 12),
           ProfileCompletenessBar(user.profileComplete),
-          if (!user.orgVerified) ...[
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/verify-org'),
-              icon: const Icon(Icons.verified_outlined, size: 16),
-              label: const Text('Get Org Verified')),
-          ],
         ])),
 
         const SizedBox(height: 12),
+
+        // ── Verify work email (Referrers only, until verified) ──
+        if (isReferrer && !user.orgVerified) ...[
+          _VerifyWorkEmailCard(
+            currentEmail: user.orgEmail ?? user.email,
+            onVerifyNow: () => context.push('/verify-org')),
+          const SizedBox(height: 12),
+        ],
 
         // ── Role switcher ─────────────────────────────────────
         _RoleSwitcherCard(
@@ -1341,6 +1342,63 @@ class _InfoLine extends StatelessWidget {
       Expanded(child: Text(text, style: GoogleFonts.inter(
         fontSize: 13, color: AppColors.textSecond))),
     ]));
+}
+
+/// Prompts a Referrer to verify their work email via OTP. Shown on the
+/// profile until [AppUser.orgVerified] flips to true. Tapping "Verify now"
+/// opens the OTP screen; "Verify later" simply dismisses the visual prompt
+/// for this session — the card returns on the next visit.
+class _VerifyWorkEmailCard extends StatefulWidget {
+  final String? currentEmail;
+  final VoidCallback onVerifyNow;
+  const _VerifyWorkEmailCard({
+    required this.currentEmail, required this.onVerifyNow,
+  });
+  @override
+  State<_VerifyWorkEmailCard> createState() => _VerifyWorkEmailCardState();
+}
+
+class _VerifyWorkEmailCardState extends State<_VerifyWorkEmailCard> {
+  bool _dismissed = false;
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+    return SectionCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: const Icon(Icons.mark_email_read_outlined,
+              size: 18, color: AppColors.primary)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Verify your work email', style: GoogleFonts.inter(
+              fontSize: 14, fontWeight: FontWeight.w700)),
+            Text(widget.currentEmail == null
+                ? 'Confirm your work email to unlock the Org Verified badge.'
+                : 'Send a code to ${widget.currentEmail} to unlock the Org '
+                  'Verified badge.',
+              style: GoogleFonts.inter(
+                fontSize: 12, color: AppColors.textSecond, height: 1.4)),
+          ])),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: OutlinedButton(
+            onPressed: () => setState(() => _dismissed = true),
+            child: const Text('Verify later'))),
+          const SizedBox(width: 10),
+          Expanded(child: ElevatedButton(
+            onPressed: widget.onVerifyNow,
+            child: const Text('Verify now'))),
+        ]),
+      ]),
+    );
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
