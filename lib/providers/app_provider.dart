@@ -51,6 +51,41 @@ class AppProvider extends ChangeNotifier {
 
   List<Job> get activeJobs => _jobs.where((j) => j.status == 'active').toList();
 
+  /// Aggregated counts for the seeker dashboard.
+  ///
+  /// `total` is every application the seeker has sent. The other buckets
+  /// partition that total by lifecycle stage:
+  ///   - pending:   awaiting initial action (pending / underReview)
+  ///   - open:      moving forward (strongMatch, shortlisted, referred, interview)
+  ///   - completed: finalised (hired / notSelected / closed)
+  SeekerMetrics get seekerMetrics {
+    final apps = _myApps;
+    int pending = 0, open = 0, completed = 0;
+    for (final a in apps) {
+      switch (a.status) {
+        case AppStatus.pending:
+        case AppStatus.underReview:
+        case AppStatus.needsReview:
+          pending++;
+        case AppStatus.strongMatch:
+        case AppStatus.shortlisted:
+        case AppStatus.referred:
+        case AppStatus.interview:
+          open++;
+        case AppStatus.hired:
+        case AppStatus.notSelected:
+        case AppStatus.closed:
+          completed++;
+      }
+    }
+    return SeekerMetrics(
+      total: apps.length,
+      pending: pending,
+      open: open,
+      completed: completed,
+    );
+  }
+
   List<Job> get filteredJobs {
     var jobs = activeJobs;
     final f = _jobFilter;
@@ -488,4 +523,18 @@ class JobFilter {
     n += tags.length;
     return n;
   }
+}
+
+/// Seeker dashboard counts — see [AppProvider.seekerMetrics].
+class SeekerMetrics {
+  final int total;
+  final int pending;
+  final int open;
+  final int completed;
+  const SeekerMetrics({
+    required this.total,
+    required this.pending,
+    required this.open,
+    required this.completed,
+  });
 }
