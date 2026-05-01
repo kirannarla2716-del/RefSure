@@ -45,6 +45,8 @@ class AppUser {
   final int avgResponseHours;
   final double responseRate;
   final double trustScore;
+  /// Total "thank you" gratitudes received from seekers.
+  final int gratitudesReceived;
 
   AppUser({
     required this.id,
@@ -83,6 +85,7 @@ class AppUser {
     this.avgResponseHours = 48,
     this.responseRate = 1.0,
     this.trustScore = 0.0,
+    this.gratitudesReceived = 0,
   }) : createdAt = createdAt ?? DateTime.now();
 
   ReferralBadge? get badge => ReferralBadge.fromCount(referralsMade);
@@ -118,6 +121,7 @@ class AppUser {
     'successRate': successRate, 'responseTime': responseTime,
     'avgResponseHours': avgResponseHours, 'responseRate': responseRate,
     'trustScore': computedTrustScore,
+    'gratitudesReceived': gratitudesReceived,
   };
 
   factory AppUser.fromFirestore(DocumentSnapshot doc) {
@@ -161,6 +165,7 @@ class AppUser {
       avgResponseHours: d['avgResponseHours'] ?? 48,
       responseRate: (d['responseRate'] ?? 1.0).toDouble(),
       trustScore: (d['trustScore'] ?? 0.0).toDouble(),
+      gratitudesReceived: d['gratitudesReceived'] ?? 0,
     );
   }
 
