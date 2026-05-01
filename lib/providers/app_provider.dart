@@ -27,6 +27,7 @@ class AppProvider extends ChangeNotifier {
   List<Application>     _myApps       = [];
   List<Application>     _providerApps = [];
   List<AppNotification> _notifs       = [];
+  List<Gratitude>       _gratitudes   = [];
   JobFilter             _jobFilter    = const JobFilter();
 
   final List<StreamSubscription> _subs = [];
@@ -48,6 +49,7 @@ class AppProvider extends ChangeNotifier {
   List<Application>     get providerApplications => _providerApps;
   List<AppNotification> get notifications       => _notifs;
   int                   get unreadCount         => _notifs.where((n) => !n.read).length;
+  List<Gratitude>       get gratitudes          => _gratitudes;
 
   List<Job> get activeJobs => _jobs.where((j) => j.status == 'active').toList();
 
@@ -158,6 +160,7 @@ class AppProvider extends ChangeNotifier {
         _myApps = [];
         _providerApps = [];
         _notifs = [];
+        _gratitudes = [];
         notifyListeners();
         return;
       }
@@ -187,6 +190,10 @@ class AppProvider extends ChangeNotifier {
       }));
       _subs.add(_db.watchNotifications(uid).listen((list) {
         _notifs = list;
+        notifyListeners();
+      }));
+      _subs.add(_db.watchAllGratitudes().listen((list) {
+        _gratitudes = list;
         notifyListeners();
       }));
 
@@ -281,6 +288,7 @@ class AppProvider extends ChangeNotifier {
     _subs.clear();
     _myApps = [];
     _providerApps = [];
+    _gratitudes = [];
     await _loadUserData(_currentUser!.id);
   }
 
@@ -289,6 +297,44 @@ class AppProvider extends ChangeNotifier {
     final url = await _storage.uploadResumeFile(_currentUser!.id);
     if (url != null) await updateProfile({'resumeUrl': url});
     return url;
+  }
+
+  // ── Gratitudes ──────────────────────────────────────────────
+
+  /// Whether the current seeker has already thanked [referrerId].
+  bool hasThanked(String referrerId) =>
+      _gratitudes.any((g) =>
+        g.fromSeekerId == _currentUser?.id && g.toReferrerId == referrerId);
+
+  /// Sends a "thank you" from the current seeker to [referrer]. The Firestore
+  /// service writes the gratitude document and bumps the referrer's counter
+  /// in a single batch.
+  Future<bool> sendGratitude({
+    required String referrerId, required String message,
+  }) async {
+    final me = _currentUser;
+    if (me == null) return false;
+    if (await _db.hasThanked(me.id, referrerId)) return false;
+    await _db.addGratitude(Gratitude(
+      id: '',
+      fromSeekerId: me.id,
+      fromSeekerName: me.name,
+      toReferrerId: referrerId,
+      message: message,
+    ));
+    return true;
+  }
+
+  /// Top referrers ordered by [LeaderboardSort]. Pulls from the in-memory
+  /// `_providers` list so the home leaderboard updates live with the rest of
+  /// the app.
+  List<AppUser> leaderboard(LeaderboardSort sort, {int limit = 5}) {
+    final list = [..._providers];
+    list.sort((a, b) => switch (sort) {
+      LeaderboardSort.referrals  => b.referralsMade.compareTo(a.referralsMade),
+      LeaderboardSort.gratitudes => b.gratitudesReceived.compareTo(a.gratitudesReceived),
+    });
+    return list.take(limit).toList();
   }
 
   // ── OTP ─────────────────────────────────────────────────────
@@ -318,6 +364,19 @@ class AppProvider extends ChangeNotifier {
 
   void updateJobFilter(JobFilter filter) {
     _jobFilter = filter;
+    notifyListeners();
+  }
+
+  /// Sets the work-mode filter. Pass `null` to clear it. Needed because
+  /// JobFilter.copyWith uses `??` semantics that can't distinguish between
+  /// "leave alone" and "clear to null".
+  void setJobWorkMode(String? mode) {
+    _jobFilter = JobFilter(
+      query: _jobFilter.query, workMode: mode, location: _jobFilter.location,
+      hotOnly: _jobFilter.hotOnly, todayOnly: _jobFilter.todayOnly,
+      last10Days: _jobFilter.last10Days,
+      minExp: _jobFilter.minExp, maxExp: _jobFilter.maxExp,
+      tags: _jobFilter.tags, sortBy: _jobFilter.sortBy);
     notifyListeners();
   }
 

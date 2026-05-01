@@ -24,7 +24,6 @@ class HomeScreen extends StatelessWidget {
     final metrics  = prov.seekerMetrics;
     final myApps   = prov.myApplications;
     final topJobs  = prov.filteredJobs.take(3).toList();
-    final topProvs = prov.providers.take(3).toList();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -39,6 +38,11 @@ class HomeScreen extends StatelessWidget {
               fontSize: 11, color: AppColors.textHint)),
           ]),
           actions: [
+            IconButton(
+              tooltip: 'Messages',
+              onPressed: () => context.push('/messages'),
+              icon: const Icon(Icons.chat_bubble_outline,
+                color: AppColors.textPrimary)),
             IconButton(
               tooltip: 'Notifications',
               onPressed: () => context.push('/notifications'),
@@ -100,18 +104,8 @@ class HomeScreen extends StatelessWidget {
                 child: JobCard(job: j))),
             const SizedBox(height: 20),
 
-            // ── Top referrers ──────────────────────────────
-            SectionHeader(
-              title: 'Top referrers',
-              action: TextButton(onPressed: () => context.push('/providers'),
-                child: const Text('See all'))),
-            const SizedBox(height: 10),
-            if (topProvs.isEmpty)
-              _EmptyMini(text: 'No referrers yet.')
-            else
-              ...topProvs.map((p) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: ProviderCard(provider: p))),
+            // ── Leadership board ───────────────────────────
+            const _LeadershipBoard(),
           ])),
         ),
       ]),
@@ -242,11 +236,15 @@ class _QuickActions extends StatelessWidget {
       onTap: () => context.push('/jobs'))),
     const SizedBox(width: 10),
     Expanded(child: _QuickActionTile(
-      icon: Icons.handshake_outlined, label: 'Find referrers',
+      icon: Icons.handshake_outlined, label: 'Referrers',
       onTap: () => context.push('/providers'))),
     const SizedBox(width: 10),
     Expanded(child: _QuickActionTile(
-      icon: Icons.assignment_outlined, label: 'Applications',
+      icon: Icons.chat_bubble_outline, label: 'Messages',
+      onTap: () => context.push('/messages'))),
+    const SizedBox(width: 10),
+    Expanded(child: _QuickActionTile(
+      icon: Icons.assignment_outlined, label: 'Applied',
       onTap: () => context.push('/applications'))),
   ]);
 }
@@ -302,6 +300,161 @@ class _EmptyMini extends StatelessWidget {
   );
 }
 
+/// Home leadership section. Lets the seeker toggle between two rankings:
+///   - Most referrals
+///   - Most appreciated (gratitudes)
+/// Both views pull from `AppProvider.leaderboard` so the underlying list is
+/// identical, only the sort field differs.
+class _LeadershipBoard extends StatefulWidget {
+  const _LeadershipBoard();
+  @override
+  State<_LeadershipBoard> createState() => _LeadershipBoardState();
+}
+
+class _LeadershipBoardState extends State<_LeadershipBoard> {
+  LeaderboardSort _sort = LeaderboardSort.referrals;
+
+  @override
+  Widget build(BuildContext context) {
+    final prov = context.watch<AppProvider>();
+    final top = prov.leaderboard(_sort);
+    return SectionCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text('Leadership board', style: GoogleFonts.inter(
+            fontSize: 15, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          TextButton(onPressed: () => context.push('/providers'),
+            child: const Text('See all')),
+        ]),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: AppColors.bg, borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border)),
+          child: Row(children: [
+            Expanded(child: _LeaderboardTab(
+              icon: Icons.handshake_outlined,
+              label: 'Most referrals',
+              selected: _sort == LeaderboardSort.referrals,
+              onTap: () => setState(() => _sort = LeaderboardSort.referrals))),
+            Expanded(child: _LeaderboardTab(
+              icon: Icons.favorite_outline,
+              label: 'Most appreciated',
+              selected: _sort == LeaderboardSort.gratitudes,
+              onTap: () => setState(() => _sort = LeaderboardSort.gratitudes))),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        if (top.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text('No referrers yet.', style: GoogleFonts.inter(
+              fontSize: 12, color: AppColors.textHint))),
+        for (var i = 0; i < top.length; i++)
+          _LeaderRow(rank: i + 1, user: top[i], sort: _sort),
+      ]),
+    );
+  }
+}
+
+class _LeaderboardTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _LeaderboardTab({
+    required this.icon, required this.label,
+    required this.selected, required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: BoxDecoration(
+        color: selected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        border: selected ? Border.all(color: AppColors.border) : null),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 14,
+          color: selected ? AppColors.primary : AppColors.textSecond),
+        const SizedBox(width: 6),
+        Flexible(child: Text(label, style: GoogleFonts.inter(
+          fontSize: 12, fontWeight: FontWeight.w600,
+          color: selected ? AppColors.primary : AppColors.textSecond),
+          overflow: TextOverflow.ellipsis, maxLines: 1)),
+      ]),
+    ),
+  );
+}
+
+class _LeaderRow extends StatelessWidget {
+  final int rank;
+  final AppUser user;
+  final LeaderboardSort sort;
+  const _LeaderRow({
+    required this.rank, required this.user, required this.sort,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final value = sort == LeaderboardSort.referrals
+        ? user.referralsMade
+        : user.gratitudesReceived;
+    final unit = sort == LeaderboardSort.referrals
+        ? (value == 1 ? 'referral' : 'referrals')
+        : (value == 1 ? 'thanks' : 'thanks');
+    final medal = rank <= 3;
+    return InkWell(
+      onTap: () => context.push('/providers/${user.id}'),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(
+              color: medal ? AppColors.goldLight : AppColors.bg,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border)),
+            alignment: Alignment.center,
+            child: Text('$rank', style: GoogleFonts.inter(
+              fontSize: 11, fontWeight: FontWeight.w800,
+              color: medal ? AppColors.gold : AppColors.textSecond))),
+          const SizedBox(width: 10),
+          UserAvatar(name: user.name, photoUrl: user.photoUrl, size: 32),
+          const SizedBox(width: 10),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(child: Text(user.name, style: GoogleFonts.inter(
+                fontSize: 13, fontWeight: FontWeight.w700),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (user.orgVerified) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.verified, size: 12, color: AppColors.primary),
+              ],
+            ]),
+            if (user.company != null && user.company!.isNotEmpty)
+              Text(user.company!, style: GoogleFonts.inter(
+                fontSize: 11, color: AppColors.textHint)),
+          ])),
+          const SizedBox(width: 8),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('$value', style: GoogleFonts.inter(
+              fontSize: 14, fontWeight: FontWeight.w800,
+              color: AppColors.primary)),
+            Text(unit, style: GoogleFonts.inter(
+              fontSize: 9, color: AppColors.textHint)),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
 // ── Jobs Screen ─────────────────────────────────────────────────
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -317,68 +470,103 @@ class _JobsScreenState extends State<JobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final prov = context.watch<AppProvider>();
+    final prov   = context.watch<AppProvider>();
     final filter = prov.jobFilter;
-    final jobs = prov.filteredJobs;
+    final jobs   = prov.filteredJobs;
+    final user   = prov.currentUser;
+    final hasCv  = (user?.resumeUrl ?? '').isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Jobs'),
-        actions: [
-          // Filter badge
-          Stack(children: [
-            IconButton(
-              onPressed: () => _showFilterSheet(context),
-              icon: const Icon(Icons.tune)),
-            if (filter.isActive) Positioned(right: 8, top: 8,
-              child: Container(width: 8, height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary, shape: BoxShape.circle))),
-          ]),
-        ],
-      ),
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(title: const Text('Jobs')),
       body: Column(children: [
-        Container(color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16,8,16,10),
-          child: TextField(controller: _q, onChanged: (v) {
-              prov.updateJobFilter(prov.jobFilter.copyWith(query: v));
-            },
-            decoration: InputDecoration(
-              hintText: 'Search jobs, skills, companies...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-              suffixIcon: _q.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear),
-                  onPressed: () { _q.clear(); prov.updateJobFilter(prov.jobFilter.copyWith(query: '')); }) : null))),
-        // ── Quick filter chips ─────────────────────────────
         Container(
           color: Colors.white,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(children: [
-              _QuickChip('Best Match', filter.sortBy == JobSortBy.matchScore,
-                () => prov.updateJobFilter(filter.copyWith(sortBy: JobSortBy.matchScore))),
-              _QuickChip('Recent', filter.sortBy == JobSortBy.recent,
-                () => prov.updateJobFilter(filter.copyWith(sortBy: JobSortBy.recent))),
-              _QuickChip('Hot', filter.hotOnly,
-                () => prov.updateJobFilter(filter.copyWith(hotOnly: !filter.hotOnly))),
-              _QuickChip('Today', filter.todayOnly,
-                () => prov.updateJobFilter(filter.copyWith(todayOnly: !filter.todayOnly))),
-              _QuickChip('Last 10 days', filter.last10Days,
-                () => prov.updateJobFilter(filter.copyWith(last10Days: !filter.last10Days))),
-              ...['Remote','Hybrid','On-site'].map((m) =>
-                _QuickChip(m, filter.workMode == m, () =>
-                  prov.updateJobFilter(filter.copyWith(
-                    workMode: filter.workMode == m ? null : m)))),
-              if (filter.isActive) ActionChip(
-                label: Text('Clear all (${filter.activeCount})',
-                  style: GoogleFonts.inter(fontSize: 12)),
-                backgroundColor: AppColors.primaryLight,
-                labelStyle: const TextStyle(color: AppColors.primary),
-                onPressed: prov.clearJobFilter),
-            ]))),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Column(children: [
+            TextField(controller: _q, onChanged: (v) {
+                prov.updateJobFilter(prov.jobFilter.copyWith(query: v));
+              },
+              decoration: InputDecoration(
+                hintText: 'Search jobs, skills, companies',
+                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                suffixIcon: _q.text.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _q.clear();
+                          prov.updateJobFilter(prov.jobFilter.copyWith(query: ''));
+                        })
+                    : null)),
+            const SizedBox(height: 10),
+            // Sort + work mode dropdowns + advanced filters button.
+            Row(children: [
+              Expanded(child: _FilterDropdown<JobSortBy>(
+                icon: Icons.sort,
+                label: 'Sort',
+                value: filter.sortBy,
+                items: const {
+                  JobSortBy.matchScore: 'Best match',
+                  JobSortBy.recent:     'Most recent',
+                  JobSortBy.hotFirst:   'Hot first',
+                },
+                onChanged: (v) => prov.updateJobFilter(filter.copyWith(sortBy: v)))),
+              const SizedBox(width: 10),
+              Expanded(child: _FilterDropdown<String?>(
+                icon: Icons.location_city_outlined,
+                label: 'Work mode',
+                value: filter.workMode,
+                items: const {
+                  null:      'All modes',
+                  'Remote':  'Remote',
+                  'Hybrid':  'Hybrid',
+                  'On-site': 'On-site',
+                },
+                onChanged: prov.setJobWorkMode)),
+              const SizedBox(width: 10),
+              _AdvancedFiltersButton(
+                badge: filter.activeCount,
+                onTap: () => _showFilterSheet(context)),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              _ToggleChip(
+                icon: Icons.local_fire_department_outlined,
+                label: 'Hot',
+                selected: filter.hotOnly,
+                onTap: () => prov.updateJobFilter(
+                  filter.copyWith(hotOnly: !filter.hotOnly))),
+              const SizedBox(width: 8),
+              _ToggleChip(
+                icon: Icons.fiber_new_outlined,
+                label: 'Today',
+                selected: filter.todayOnly,
+                onTap: () => prov.updateJobFilter(
+                  filter.copyWith(todayOnly: !filter.todayOnly))),
+              const SizedBox(width: 8),
+              _ToggleChip(
+                icon: Icons.calendar_today_outlined,
+                label: 'Last 10 days',
+                selected: filter.last10Days,
+                onTap: () => prov.updateJobFilter(
+                  filter.copyWith(last10Days: !filter.last10Days))),
+              const Spacer(),
+              if (filter.isActive)
+                TextButton.icon(
+                  onPressed: prov.clearJobFilter,
+                  icon: const Icon(Icons.clear_all, size: 16),
+                  label: Text('Clear (${filter.activeCount})')),
+            ]),
+          ]),
+        ),
+
+        // CV upload nudge — Best Match only delivers great rankings once we
+        // have a CV to score against.
+        if (prov.isSeeker && !hasCv && filter.sortBy == JobSortBy.matchScore)
+          _CvNudgeBanner(),
 
         Expanded(child: jobs.isEmpty
-          ? EmptyState(icon: Icons.search_off_outlined, title: 'No jobs found',
+          ? EmptyState(icon: Icons.search_off_outlined,
+              title: 'No jobs found',
               subtitle: 'Try different filters or clear all',
               action: TextButton(onPressed: prov.clearJobFilter,
                 child: const Text('Clear filters')))
@@ -389,8 +577,21 @@ class _JobsScreenState extends State<JobsScreen> {
               itemBuilder: (ctx, i) {
                 if (i == 0) return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text('${jobs.length} jobs', style: GoogleFonts.inter(
-                    fontSize: 12, color: AppColors.textHint)));
+                  child: Row(children: [
+                    Text('${jobs.length} jobs', style: GoogleFonts.inter(
+                      fontSize: 12, color: AppColors.textHint)),
+                    const Spacer(),
+                    if (filter.sortBy == JobSortBy.matchScore && prov.isSeeker)
+                      Row(children: [
+                        const Icon(Icons.gps_fixed,
+                          size: 12, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text('Sorted by match',
+                          style: GoogleFonts.inter(
+                            fontSize: 11, color: AppColors.primary,
+                            fontWeight: FontWeight.w600)),
+                      ]),
+                  ]));
                 return JobCard(job: jobs[i - 1]);
               })),
       ]),
@@ -398,20 +599,80 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 
   void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context, isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => const _FilterSheet());
   }
 }
 
-class _QuickChip extends StatelessWidget {
+/// Pill-shaped dropdown that fits the design system. Used on the Jobs
+/// header for Sort and Work Mode.
+class _FilterDropdown<T> extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final T value;
+  final Map<T, String> items;
+  final ValueChanged<T> onChanged;
+  const _FilterDropdown({
+    required this.icon, required this.label,
+    required this.value, required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    decoration: BoxDecoration(
+      color: Colors.white, borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.border)),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        value: value,
+        isExpanded: true,
+        icon: const Icon(Icons.keyboard_arrow_down, size: 18,
+          color: AppColors.textSecond),
+        style: GoogleFonts.inter(
+          fontSize: 13, color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600),
+        items: [
+          for (final e in items.entries) DropdownMenuItem<T>(
+            value: e.key,
+            child: Row(children: [
+              Icon(icon, size: 14, color: AppColors.textSecond),
+              const SizedBox(width: 8),
+              Flexible(child: Text(e.value,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary))),
+            ])),
+        ],
+        onChanged: (v) { if (v != null || null is T) onChanged(v as T); },
+        selectedItemBuilder: (_) => [
+          for (final e in items.entries) Row(children: [
+            Icon(icon, size: 14, color: AppColors.textSecond),
+            const SizedBox(width: 6),
+            Flexible(child: Text('$label: ${e.value}',
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12, fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary))),
+          ]),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ToggleChip extends StatelessWidget {
+  final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _QuickChip(this.label, this.selected, this.onTap);
-
+  const _ToggleChip({
+    required this.icon, required this.label,
+    required this.selected, required this.onTap,
+  });
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -420,10 +681,75 @@ class _QuickChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected ? AppColors.primary : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: selected ? AppColors.primary : AppColors.border)),
-      child: Text(label, style: GoogleFonts.inter(
-        fontSize: 12, fontWeight: FontWeight.w500,
-        color: selected ? Colors.white : AppColors.textSecond))));
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.border)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 12,
+          color: selected ? Colors.white : AppColors.textSecond),
+        const SizedBox(width: 4),
+        Text(label, style: GoogleFonts.inter(
+          fontSize: 12, fontWeight: FontWeight.w600,
+          color: selected ? Colors.white : AppColors.textSecond)),
+      ]),
+    ),
+  );
+}
+
+class _AdvancedFiltersButton extends StatelessWidget {
+  final int badge;
+  final VoidCallback onTap;
+  const _AdvancedFiltersButton({required this.badge, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(10),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border)),
+        child: Stack(clipBehavior: Clip.none, children: [
+          const Icon(Icons.tune, size: 18, color: AppColors.textPrimary),
+          if (badge > 0)
+            Positioned(right: -6, top: -4,
+              child: Container(
+                width: 14, height: 14,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: Text('$badge', style: GoogleFonts.inter(
+                  fontSize: 9, color: Colors.white,
+                  fontWeight: FontWeight.w800)))),
+        ]),
+      ),
+    ),
+  );
+}
+
+class _CvNudgeBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: AppColors.primaryLight,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.primary.withOpacity(0.3))),
+    child: Row(children: [
+      const Icon(Icons.upload_file, size: 18, color: AppColors.primary),
+      const SizedBox(width: 8),
+      Expanded(child: Text(
+        'Upload your CV to see jobs ranked by match score.',
+        style: GoogleFonts.inter(
+          fontSize: 12, color: AppColors.primary,
+          fontWeight: FontWeight.w600))),
+      TextButton(onPressed: () => context.push('/edit-profile'),
+        child: const Text('Add CV')),
+    ]),
+  );
 }
 
 // ── Filter Bottom Sheet ────────────────────────────────────────
@@ -897,7 +1223,8 @@ class ProviderDetailScreen extends StatelessWidget {
             StatBox(label: 'Successful', value: '${provider.successfulReferrals}',
               valueColor: AppColors.emerald),
             StatBox(label: 'Success %', value: '${provider.successRate}%'),
-            StatBox(label: 'Jobs Posted', value: '${provider.totalJobsPosted}'),
+            StatBox(label: 'Thanks', value: '${provider.gratitudesReceived}',
+              valueColor: AppColors.accent),
           ]),
           const SizedBox(height: 14),
           TrustScoreBar(provider.computedTrustScore),
@@ -941,11 +1268,127 @@ class ProviderDetailScreen extends StatelessWidget {
 
       bottomNavigationBar: SafeArea(
         child: Padding(padding: const EdgeInsets.all(16),
-          child: ElevatedButton.icon(
-            onPressed: () => context.push('/messages/$providerId'),
-            icon: const Icon(Icons.message_outlined),
-            label: Text('Message ${provider.name.split(' ').first}')))),
+          child: Row(children: [
+            Expanded(child: OutlinedButton.icon(
+              onPressed: prov.isSeeker
+                  ? () => _showThanksSheet(context, provider)
+                  : null,
+              icon: Icon(prov.hasThanked(providerId)
+                  ? Icons.favorite : Icons.favorite_outline),
+              label: Text(prov.hasThanked(providerId)
+                  ? 'Thanked'
+                  : 'Send thanks'))),
+            const SizedBox(width: 10),
+            Expanded(child: ElevatedButton.icon(
+              onPressed: () => context.push('/messages/$providerId'),
+              icon: const Icon(Icons.message_outlined),
+              label: Text('Message ${provider.name.split(' ').first}'))),
+          ]))),
     );
+  }
+
+  void _showThanksSheet(BuildContext context, AppUser referrer) {
+    final prov = context.read<AppProvider>();
+    if (prov.hasThanked(referrer.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('You have already thanked ${referrer.name.split(' ').first}.'),
+        behavior: SnackBarBehavior.floating));
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context, isScrollControlled: true,
+      builder: (ctx) => _SendThanksSheet(referrer: referrer),
+    );
+  }
+}
+
+class _SendThanksSheet extends StatefulWidget {
+  final AppUser referrer;
+  const _SendThanksSheet({required this.referrer});
+  @override
+  State<_SendThanksSheet> createState() => _SendThanksSheetState();
+}
+
+class _SendThanksSheetState extends State<_SendThanksSheet> {
+  final _msg = TextEditingController(
+    text: 'Thank you for your support and the referral.');
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void dispose() { _msg.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(20, 20, 20,
+      MediaQuery.of(context).viewInsets.bottom + 20),
+    child: Column(mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: const BoxDecoration(
+            color: AppColors.primaryLight, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: const Icon(Icons.favorite_outline,
+            size: 18, color: AppColors.primary)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Thank ${widget.referrer.name.split(' ').first}',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text('Your note will appear on their profile and the leaderboard.',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecond)),
+        ])),
+      ]),
+      const SizedBox(height: 16),
+      TextField(controller: _msg, maxLines: 3, maxLength: 240,
+        decoration: const InputDecoration(
+          labelText: 'Your message',
+          hintText: 'Say what they did to help.')),
+      if (_error != null) ...[
+        const SizedBox(height: 4),
+        Text(_error!, style: GoogleFonts.inter(
+          fontSize: 12, color: AppColors.red)),
+      ],
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: OutlinedButton(
+          onPressed: _sending ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'))),
+        const SizedBox(width: 12),
+        Expanded(child: ElevatedButton.icon(
+          onPressed: _sending ? null : _send,
+          icon: _sending
+              ? const SizedBox(width: 16, height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.favorite, size: 16),
+          label: const Text('Send thanks'))),
+      ]),
+    ]),
+  );
+
+  Future<void> _send() async {
+    final text = _msg.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Add a short note before sending.');
+      return;
+    }
+    setState(() { _sending = true; _error = null; });
+    final ok = await context.read<AppProvider>().sendGratitude(
+      referrerId: widget.referrer.id, message: text);
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (!ok) {
+      setState(() => _error = 'You have already thanked this referrer.');
+      return;
+    }
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Thanks sent to ${widget.referrer.name.split(' ').first}.'),
+      backgroundColor: AppColors.emerald,
+      behavior: SnackBarBehavior.floating));
   }
 }
 
