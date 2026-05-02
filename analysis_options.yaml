@@ -1,0 +1,32 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  errors:
+    # Treat these as warnings during migration (not hard errors)
+    prefer_const_constructors: warning
+    prefer_const_declarations: warning
+    public_member_api_docs: ignore
+    lines_longer_than_80_chars: ignore
+    flutter_style_todos: ignore
+    prefer_single_quotes: ignore
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.config.dart'
+    - 'lib/firebase_options.dart'
+    - 'lib/l10n/generated/**'
+
+linter:
+  rules:
+    public_member_api_docs: false
+    lines_longer_than_80_chars: false
+    flutter_style_todos: false
+    sort_pub_dependencies: false
+    prefer_single_quotes: false
+    # Architecture enforcement: prevent cross-feature imports
+    # (enforced by convention + code review until custom lint rules available)
+    # Feature modules should only import from:
+    #   - Their own feature folder
+    #   - lib/core/
+    #   - lib/design_system/
+    #   - External packages
+    # They should NOT import from other features directly.

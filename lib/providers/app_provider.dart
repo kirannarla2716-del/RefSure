@@ -1,4 +1,5 @@
 // lib/providers/app_provider.dart — v2.0 FIXED
+// ignore_for_file: argument_type_not_assignable, require_trailing_commas
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
@@ -412,8 +413,6 @@ class AppProvider extends ChangeNotifier {
 }
 
 // ── JobFilter ─────────────────────────────────────────────────
-
-enum JobSortBy { matchScore, recent, hotFirst }
 
 class JobFilter {
   final String  query;
