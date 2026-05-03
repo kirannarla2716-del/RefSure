@@ -5,10 +5,12 @@
 // can be exercised without manual data entry.
 //
 // ─── HOW TO INVOKE ─────────────────────────────────────────────────────────
-//   await TestDataSeeder.seed(currentUserId);
+//   await TestDataSeeder.seed(FirebaseFirestore.instance);
+//   // Optionally pass currentUserId to also update the logged-in user's profile:
+//   await TestDataSeeder.seed(FirebaseFirestore.instance, currentUserId: uid);
 //
 // ─── GUARD ─────────────────────────────────────────────────────────────────
-//   The method checks for document `users/seed_provider_001` before writing.
+//   The method checks for document `_meta/seed_status` before writing.
 //   If it already exists the call is a no-op, so it's safe to invoke twice.
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -18,7 +20,9 @@ class TestDataSeeder {
   TestDataSeeder._();
 
   // ── Fixed deterministic IDs ──────────────────────────────────────────────
-  static const _guardDoc = 'seed_provider_001';
+  // Guard lives at _meta/seed_status to avoid polluting any user collection.
+  static const _metaCollection = '_meta';
+  static const _guardDocId     = 'seed_status';
 
   static const _providerIds = [
     'seed_provider_001',
@@ -54,22 +58,26 @@ class TestDataSeeder {
 
   /// Seeds all test data into Firestore.
   ///
-  /// [currentUserId] is the Firebase Auth UID of the logged-in user.
-  /// Their profile will be updated to match the Kiran Narla seeker persona,
-  /// and applications will be written with their UID as [seekerId].
-  static Future<void> seed(String currentUserId) async {
-    final db = FirebaseFirestore.instance;
+  /// [db] is the [FirebaseFirestore] instance to write to.
+  /// [currentUserId] is optional — when provided the logged-in user's profile
+  /// is updated to the Kiran Narla seeker persona and applications are written
+  /// with their UID as [seekerId].
+  static Future<void> seed(FirebaseFirestore db, {String? currentUserId}) async {
 
-    // ── Guard: skip if seed already exists ──────────────────────────────
-    final guard = await db.collection('users').doc(_guardDoc).get();
+    // ── Guard: skip if _meta/seed_status already exists ─────────────────
+    final guard = await db
+        .collection(_metaCollection)
+        .doc(_guardDocId)
+        .get();
     if (guard.exists) return;
 
-    // ── Batch 1: Providers (leaderboard) + update current user ──────────
+    // ── Batch 1: Provider user-docs + optional current-user update ───────
     final batch1 = db.batch();
-
-    // Update the current (seeker) user to the Kiran Narla persona
     final now = Timestamp.now();
-    batch1.update(db.collection('users').doc(currentUserId), {
+
+    if (currentUserId != null) {
+      // Update the logged-in user to the Kiran Narla seeker persona
+      batch1.update(db.collection('users').doc(currentUserId), {
       'name': 'Kiran Narla',
       'headline': 'Senior Flutter Developer · Open to referrals',
       'title': 'Senior Flutter Developer',
@@ -85,9 +93,10 @@ class TestDataSeeder {
       'expectedSalary': '35',
       'updatedAt': now,
       'lastActiveAt': now,
-    });
+      });
+    }
 
-    // Seed providers (ordered by referralsMade: 10, 8, 6, 4, 2)
+    // Seed 5 provider docs (ordered by referralsMade: 10, 8, 6, 4, 2)
     final providers = _buildProviders(now);
     for (var i = 0; i < providers.length; i++) {
       batch1.set(
@@ -111,9 +120,10 @@ class TestDataSeeder {
     }
     await batch2.commit();
 
-    // ── Batch 3: Applications ────────────────────────────────────────────
+    // ── Batch 3: 4 Applications (underReview / underReview / pending / hired) ─
     final batch3 = db.batch();
-    final apps = _buildApplications(currentUserId, now);
+    final seekerId = currentUserId ?? 'seed_seeker_001';
+    final apps = _buildApplications(seekerId, now);
     for (var i = 0; i < apps.length; i++) {
       batch3.set(
         db.collection('applications').doc(_appIds[i]),
@@ -123,9 +133,9 @@ class TestDataSeeder {
     }
     await batch3.commit();
 
-    // ── Batch 4: Gratitudes ──────────────────────────────────────────────
+    // ── Batch 4: 3 Gratitudes ────────────────────────────────────────────
     final batch4 = db.batch();
-    final gratitudes = _buildGratitudes(currentUserId, now);
+    final gratitudes = _buildGratitudes(seekerId, now);
     for (var i = 0; i < gratitudes.length; i++) {
       batch4.set(
         db.collection('gratitudes').doc(_gratitudeIds[i]),
@@ -134,6 +144,30 @@ class TestDataSeeder {
       );
     }
     await batch4.commit();
+
+    // ── Batch 5: 5 Leaderboard entries + guard doc ────────────────────────
+    final batch5 = db.batch();
+    final leaderboard = _buildLeaderboard(now);
+    for (var i = 0; i < leaderboard.length; i++) {
+      batch5.set(
+        db.collection('leaderboard')
+            .doc('lb_entry_\${(i + 1).toString().padLeft(3, '0')}'),
+        leaderboard[i],
+        SetOptions(merge: false),
+      );
+    }
+    // Write the guard last — a partial failure won't set the guard
+    batch5.set(
+      db.collection(_metaCollection).doc(_guardDocId),
+      {
+        'seededAt': now,
+        'version': 1,
+        'collections': [
+          'users', 'jobs', 'applications', 'gratitudes', 'leaderboard'
+        ],
+      },
+    );
+    await batch5.commit();
   }
 
   // ── Builders ─────────────────────────────────────────────────────────────
@@ -719,4 +753,72 @@ class TestDataSeeder {
       },
     ];
   }
+
+  static List<Map<String, dynamic>> _buildLeaderboard(Timestamp now) => [
+    {
+      'rank': 1,
+      'userId': _providerIds[0],
+      'name': 'Arjun Mehta',
+      'company': 'Google',
+      'title': 'Engineering Manager',
+      'referralsMade': 10,
+      'successfulReferrals': 7,
+      'successRate': 70,
+      'trustScore': 88.0,
+      'period': 'allTime',
+      'updatedAt': now,
+    },
+    {
+      'rank': 2,
+      'userId': _providerIds[1],
+      'name': 'Priya Sharma',
+      'company': 'Flipkart',
+      'title': 'Senior Product Manager',
+      'referralsMade': 8,
+      'successfulReferrals': 5,
+      'successRate': 62,
+      'trustScore': 82.0,
+      'period': 'allTime',
+      'updatedAt': now,
+    },
+    {
+      'rank': 3,
+      'userId': _providerIds[2],
+      'name': 'Rohan Verma',
+      'company': 'Swiggy',
+      'title': 'Staff Engineer',
+      'referralsMade': 6,
+      'successfulReferrals': 4,
+      'successRate': 66,
+      'trustScore': 74.0,
+      'period': 'allTime',
+      'updatedAt': now,
+    },
+    {
+      'rank': 4,
+      'userId': _providerIds[3],
+      'name': 'Nisha Kapoor',
+      'company': 'Amazon',
+      'title': 'Data Engineering Lead',
+      'referralsMade': 4,
+      'successfulReferrals': 2,
+      'successRate': 50,
+      'trustScore': 55.0,
+      'period': 'allTime',
+      'updatedAt': now,
+    },
+    {
+      'rank': 5,
+      'userId': _providerIds[4],
+      'name': 'Vikram Singh',
+      'company': 'Razorpay',
+      'title': 'UX Design Lead',
+      'referralsMade': 2,
+      'successfulReferrals': 1,
+      'successRate': 50,
+      'trustScore': 42.0,
+      'period': 'allTime',
+      'updatedAt': now,
+    },
+  ];
 }

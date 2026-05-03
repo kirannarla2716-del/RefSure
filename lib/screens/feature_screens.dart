@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../core/router/route_names.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/utils/test_data_seeder.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
@@ -1326,9 +1327,16 @@ class _DeveloperSectionState extends State<_DeveloperSection> {
   Future<void> _seed() async {
     setState(() { _seeding = true; _msg = null; });
     try {
-      await TestDataSeeder.seed(widget.userId);
+      await TestDataSeeder.seed(FirebaseFirestore.instance, currentUserId: widget.userId);
       if (!mounted) return;
       setState(() => _msg = 'Seed data written — reload the app to see all screens populated.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Test data seeded successfully'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _msg = 'Error: $e');
