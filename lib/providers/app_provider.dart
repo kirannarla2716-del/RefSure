@@ -1,4 +1,5 @@
 // lib/providers/app_provider.dart — v2.0 FIXED
+// ignore_for_file: argument_type_not_assignable, require_trailing_commas
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
@@ -26,6 +27,7 @@ class AppProvider extends ChangeNotifier {
   List<Application>     _myApps       = [];
   List<Application>     _providerApps = [];
   List<AppNotification> _notifs       = [];
+  List<Gratitude>       _gratitudes   = [];
   JobFilter             _jobFilter    = const JobFilter();
 
   final List<StreamSubscription> _subs = [];
@@ -47,8 +49,44 @@ class AppProvider extends ChangeNotifier {
   List<Application>     get providerApplications => _providerApps;
   List<AppNotification> get notifications       => _notifs;
   int                   get unreadCount         => _notifs.where((n) => !n.read).length;
+  List<Gratitude>       get gratitudes          => _gratitudes;
 
   List<Job> get activeJobs => _jobs.where((j) => j.status == 'active').toList();
+
+  /// Aggregated counts for the seeker dashboard.
+  ///
+  /// `total` is every application the seeker has sent. The other buckets
+  /// partition that total by lifecycle stage:
+  ///   - pending:   awaiting initial action (pending / underReview)
+  ///   - open:      moving forward (strongMatch, shortlisted, referred, interview)
+  ///   - completed: finalised (hired / notSelected / closed)
+  SeekerMetrics get seekerMetrics {
+    final apps = _myApps;
+    int pending = 0, open = 0, completed = 0;
+    for (final a in apps) {
+      switch (a.status) {
+        case AppStatus.pending:
+        case AppStatus.underReview:
+        case AppStatus.needsReview:
+          pending++;
+        case AppStatus.strongMatch:
+        case AppStatus.shortlisted:
+        case AppStatus.referred:
+        case AppStatus.interview:
+          open++;
+        case AppStatus.hired:
+        case AppStatus.notSelected:
+        case AppStatus.closed:
+          completed++;
+      }
+    }
+    return SeekerMetrics(
+      total: apps.length,
+      pending: pending,
+      open: open,
+      completed: completed,
+    );
+  }
 
   List<Job> get filteredJobs {
     var jobs = activeJobs;
@@ -122,6 +160,7 @@ class AppProvider extends ChangeNotifier {
         _myApps = [];
         _providerApps = [];
         _notifs = [];
+        _gratitudes = [];
         notifyListeners();
         return;
       }
@@ -151,6 +190,10 @@ class AppProvider extends ChangeNotifier {
       }));
       _subs.add(_db.watchNotifications(uid).listen((list) {
         _notifs = list;
+        notifyListeners();
+      }));
+      _subs.add(_db.watchAllGratitudes().listen((list) {
+        _gratitudes = list;
         notifyListeners();
       }));
 
@@ -232,11 +275,66 @@ class AppProvider extends ChangeNotifier {
     await _db.updateUser(_currentUser!.id, data);
   }
 
+  /// Switches the user between Job Seeker and Referrer. Persists the new role
+  /// to Firestore and rebuilds the role-scoped subscriptions so the rest of
+  /// the app sees the right data immediately.
+  Future<void> setActiveRole(UserRole role) async {
+    if (_currentUser == null || _activeRole == role) return;
+    _activeRole = role;
+    notifyListeners();
+    await _db.updateUser(_currentUser!.id, {'role': role.name});
+    // Tear down role-scoped streams and rebuild for the new role.
+    for (final s in _subs) { unawaited(s.cancel()); }
+    _subs.clear();
+    _myApps = [];
+    _providerApps = [];
+    _gratitudes = [];
+    await _loadUserData(_currentUser!.id);
+  }
+
   Future<String?> uploadResume() async {
     if (_currentUser == null) return null;
     final url = await _storage.uploadResumeFile(_currentUser!.id);
     if (url != null) await updateProfile({'resumeUrl': url});
     return url;
+  }
+
+  // ── Gratitudes ──────────────────────────────────────────────
+
+  /// Whether the current seeker has already thanked [referrerId].
+  bool hasThanked(String referrerId) =>
+      _gratitudes.any((g) =>
+        g.fromSeekerId == _currentUser?.id && g.toReferrerId == referrerId);
+
+  /// Sends a "thank you" from the current seeker to [referrer]. The Firestore
+  /// service writes the gratitude document and bumps the referrer's counter
+  /// in a single batch.
+  Future<bool> sendGratitude({
+    required String referrerId, required String message,
+  }) async {
+    final me = _currentUser;
+    if (me == null) return false;
+    if (await _db.hasThanked(me.id, referrerId)) return false;
+    await _db.addGratitude(Gratitude(
+      id: '',
+      fromSeekerId: me.id,
+      fromSeekerName: me.name,
+      toReferrerId: referrerId,
+      message: message,
+    ));
+    return true;
+  }
+
+  /// Top referrers ordered by [LeaderboardSort]. Pulls from the in-memory
+  /// `_providers` list so the home leaderboard updates live with the rest of
+  /// the app.
+  List<AppUser> leaderboard(LeaderboardSort sort, {int limit = 5}) {
+    final list = [..._providers];
+    list.sort((a, b) => switch (sort) {
+      LeaderboardSort.referrals  => b.referralsMade.compareTo(a.referralsMade),
+      LeaderboardSort.gratitudes => b.gratitudesReceived.compareTo(a.gratitudesReceived),
+    });
+    return list.take(limit).toList();
   }
 
   // ── OTP ─────────────────────────────────────────────────────
@@ -266,6 +364,19 @@ class AppProvider extends ChangeNotifier {
 
   void updateJobFilter(JobFilter filter) {
     _jobFilter = filter;
+    notifyListeners();
+  }
+
+  /// Sets the work-mode filter. Pass `null` to clear it. Needed because
+  /// JobFilter.copyWith uses `??` semantics that can't distinguish between
+  /// "leave alone" and "clear to null".
+  void setJobWorkMode(String? mode) {
+    _jobFilter = JobFilter(
+      query: _jobFilter.query, workMode: mode, location: _jobFilter.location,
+      hotOnly: _jobFilter.hotOnly, todayOnly: _jobFilter.todayOnly,
+      last10Days: _jobFilter.last10Days,
+      minExp: _jobFilter.minExp, maxExp: _jobFilter.maxExp,
+      tags: _jobFilter.tags, sortBy: _jobFilter.sortBy);
     notifyListeners();
   }
 
@@ -344,9 +455,9 @@ class AppProvider extends ChangeNotifier {
     final job = findJob(app.jobId);
     final statusTexts = {
       AppStatus.shortlisted: 'was shortlisted',
-      AppStatus.referred:    'has been referred ✅',
-      AppStatus.interview:   'has been scheduled for interview 📅',
-      AppStatus.hired:       'has been hired! 🎉',
+      AppStatus.referred:    'has been referred',
+      AppStatus.interview:   'has been scheduled for interview',
+      AppStatus.hired:       'has been hired',
       AppStatus.notSelected: 'was not selected this time',
       AppStatus.closed:      'position has been closed',
     };
@@ -364,7 +475,7 @@ class AppProvider extends ChangeNotifier {
   MatchReport computeMatch(Job job) {
     if (_currentUser == null) {
       return MatchReport(
-        score: 0, band: MatchBand.lowMatch, bandLabel: '🔴 Low Match',
+        score: 0, band: MatchBand.lowMatch, bandLabel: 'Low Match',
         recommendation: 'Sign in to see your match.',
         matchedSkills: [], missingSkills: job.skills,
         strengths: [], gaps: [],
@@ -412,8 +523,6 @@ class AppProvider extends ChangeNotifier {
 }
 
 // ── JobFilter ─────────────────────────────────────────────────
-
-enum JobSortBy { matchScore, recent, hotFirst }
 
 class JobFilter {
   final String  query;
@@ -473,4 +582,18 @@ class JobFilter {
     n += tags.length;
     return n;
   }
+}
+
+/// Seeker dashboard counts — see [AppProvider.seekerMetrics].
+class SeekerMetrics {
+  final int total;
+  final int pending;
+  final int open;
+  final int completed;
+  const SeekerMetrics({
+    required this.total,
+    required this.pending,
+    required this.open,
+    required this.completed,
+  });
 }

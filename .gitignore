@@ -1,7 +1,6 @@
 # Firebase credentials — NEVER commit
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart
 
 # Flutter generated
 build/
@@ -10,7 +9,6 @@ build/
 .flutter-plugins-dependencies
 .packages
 *.g.dart
-.flutter-plugins-dependencies
 
 # IDE
 .idea/
@@ -18,3 +16,18 @@ build/
 *.iml
 .DS_Store
 Thumbs.db
+
+# macOS resource forks
+._*
+
+# Qoder
+.qoder/
+
+# Local properties
+android/local.properties
+
+# Generated
+.metadata
+*.ephemeral
+ios/Flutter/ephemeral/
+macos/Flutter/ephemeral/

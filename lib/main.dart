@@ -3,7 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/di/injection.dart';
 import 'firebase_options.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'providers/app_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'router.dart';
@@ -12,6 +14,7 @@ import 'utils/theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  configureDependencies();
   runApp(const RefSureApp());
 }
 
@@ -48,9 +51,11 @@ class _RouterWrapperState extends State<_RouterWrapper> {
     if (_router == null) return const SizedBox.shrink();
     return MaterialApp.router(
       title: 'RefSure',
-      theme: buildTheme(),
+      theme: buildAppTheme(),
       routerConfig: _router!,
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
     );
   }
 }

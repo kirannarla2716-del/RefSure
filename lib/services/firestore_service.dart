@@ -5,11 +5,12 @@ import '../models/models.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  CollectionReference get _users   => _db.collection('users');
-  CollectionReference get _jobs    => _db.collection('jobs');
-  CollectionReference get _apps    => _db.collection('applications');
-  CollectionReference get _msgs    => _db.collection('messages');
-  CollectionReference get _notifs  => _db.collection('notifications');
+  CollectionReference get _users      => _db.collection('users');
+  CollectionReference get _jobs       => _db.collection('jobs');
+  CollectionReference get _apps       => _db.collection('applications');
+  CollectionReference get _msgs       => _db.collection('messages');
+  CollectionReference get _notifs     => _db.collection('notifications');
+  CollectionReference get _gratitudes => _db.collection('gratitudes');
 
   // ─────────────────── USERS ──────────────────────────────
 
@@ -177,6 +178,43 @@ class FirestoreService {
           .map((s) => s.docs.map(Message.fromFirestore).toList());
 
   Future<void> sendMessage(Message msg) => _msgs.add(msg.toFirestore());
+
+  // ─────────────────── GRATITUDES ─────────────────────────
+
+  /// All gratitudes received by [referrerId], newest first.
+  Stream<List<Gratitude>> watchGratitudesFor(String referrerId) =>
+      _gratitudes.where('toReferrerId', isEqualTo: referrerId)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map(Gratitude.fromFirestore).toList());
+
+  /// All gratitudes (used for the leaderboard view).
+  Stream<List<Gratitude>> watchAllGratitudes() =>
+      _gratitudes.orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map(Gratitude.fromFirestore).toList());
+
+  /// True if [seekerId] has already thanked [referrerId] — used to keep the
+  /// "Send thanks" CTA idempotent per relationship.
+  Future<bool> hasThanked(String seekerId, String referrerId) async {
+    final snap = await _gratitudes
+        .where('fromSeekerId', isEqualTo: seekerId)
+        .where('toReferrerId', isEqualTo: referrerId)
+        .limit(1).get();
+    return snap.docs.isNotEmpty;
+  }
+
+  /// Adds a gratitude doc and increments the referrer's counter atomically.
+  Future<void> addGratitude(Gratitude g) async {
+    final batch = _db.batch();
+    final ref = _gratitudes.doc();
+    batch.set(ref, {...g.toFirestore(), 'id': ref.id});
+    batch.update(_users.doc(g.toReferrerId), {
+      'gratitudesReceived': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
 
   // ─────────────────── NOTIFICATIONS ──────────────────────
 
