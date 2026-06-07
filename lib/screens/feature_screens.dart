@@ -13,6 +13,8 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../screens/match_detail_screen.dart';
 import '../utils/theme.dart';
+import '../core/constants/app_constants.dart';
+import '../services/tour_service.dart';
 import '../widgets/common.dart';
 import '../widgets/cards.dart';
 
@@ -1133,7 +1135,34 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
     final user = prov.currentUser;
-    if (user == null) return const LoadingSpinner();
+    if (user == null) {
+      if (!prov.authReady) return const LoadingSpinner();
+      // Auth is ready but no profile — show error with action buttons
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        appBar: AppBar(title: const Text('My Profile')),
+        body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.person_off_outlined, size: 64, color: AppColors.textHint),
+          const SizedBox(height: 16),
+          Text('Profile not found', style: GoogleFonts.inter(
+            fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text('Your account exists but profile is missing.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecond)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => context.go('/onboarding'),
+            child: const Text('Complete Profile Setup')),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () async {
+              await context.read<AppProvider>().signOut();
+              if (context.mounted) context.go('/auth');
+            },
+            child: const Text('Sign Out')),
+        ])),
+      );
+    }
 
     final isReferrer = prov.isProvider;
 
@@ -1251,6 +1280,46 @@ class ProfileScreen extends StatelessWidget {
 
         const SizedBox(height: 24),
 
+        // ── Support section ───────────────────────────────────
+        SectionCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Support', style: GoogleFonts.inter(
+              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 12),
+            _SupportRow(
+              icon: Icons.email_outlined,
+              label: 'Email Support',
+              value: AppConstants.supportEmail,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Email us at ${AppConstants.supportEmail}')));
+              }),
+            const Divider(height: 20),
+            _SupportRow(
+              icon: Icons.phone_outlined,
+              label: 'Call Support',
+              value: AppConstants.supportPhone,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Call us at ${AppConstants.supportPhone}')));
+              }),
+            const Divider(height: 20),
+            _SupportRow(
+              icon: Icons.play_circle_outline,
+              label: 'Replay Quick Tour',
+              value: 'Restart the onboarding walkthrough',
+              onTap: () async {
+                await TourService.resetTour();
+                if (context.mounted) {
+                  context.go('/');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Quick Tour is back on your Home screen')));
+                }
+              }),
+          ])),
+
+        const SizedBox(height: 24),
+
         // ── Developer section ─────────────────────────────────
         _DeveloperSection(userId: user.id),
 
@@ -1313,6 +1382,30 @@ class ProfileScreen extends StatelessWidget {
 // ════════════════════════════════════════════════════════════════
 // DEVELOPER SECTION  (seed test data)
 // ════════════════════════════════════════════════════════════════
+class _SupportRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  const _SupportRow({required this.icon, required this.label, required this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecond)),
+          Text(value,  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        ])),
+        const Icon(Icons.chevron_right, size: 16, color: AppColors.textHint),
+      ])));
+}
+
 class _DeveloperSection extends StatefulWidget {
   final String userId;
   const _DeveloperSection({required this.userId});
@@ -1556,14 +1649,43 @@ class MessagesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
-    final contacts = prov.isProvider ? prov.seekers : prov.providers;
+
+    // Build contact list from applications — only show users we've interacted with.
+    // Seeker → providers of jobs they applied to.
+    // Provider → seekers who applied to their jobs.
+    final List<AppUser> contacts;
+    if (prov.isProvider) {
+      final seenIds = <String>{};
+      contacts = prov.providerApplications
+          .where((a) => seenIds.add(a.seekerId))
+          .map((a) {
+            try { return prov.findUser(a.seekerId); }
+            catch (_) { return null; }
+          })
+          .whereType<AppUser>()
+          .toList();
+    } else {
+      final seenIds = <String>{};
+      contacts = prov.myApplications
+          .where((a) => seenIds.add(a.providerId))
+          .map((a) {
+            try { return prov.findUser(a.providerId); }
+            catch (_) { return null; }
+          })
+          .whereType<AppUser>()
+          .toList();
+    }
+
+    final emptySubtitle = prov.isProvider
+        ? 'Seekers who apply to your jobs will appear here'
+        : 'Apply to jobs to start messaging referrers';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
       body: contacts.isEmpty
-          ? const EmptyState(icon: Icons.chat_bubble_outline,
+          ? EmptyState(icon: Icons.chat_bubble_outline,
               title: 'No conversations',
-              subtitle: 'Message referrers to ask about open roles')
+              subtitle: emptySubtitle)
           : ListView.separated(
               padding: const EdgeInsets.all(16), itemCount: contacts.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),

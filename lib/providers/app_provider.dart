@@ -49,6 +49,10 @@ class AppProvider extends ChangeNotifier {
   bool get isGuest =>
       _auth.currentFirebaseUser?.isAnonymous ?? true;
 
+  /// True only when there is no Firebase user at all (fully signed out).
+  /// Anonymous demo sessions are NOT signed out.
+  bool get isSignedOut => _auth.currentFirebaseUser == null;
+
   List<AppUser>         get providers           => _providers;
   List<AppUser>         get seekers             => _seekers;
   List<Job>             get allJobs             => _jobs;
@@ -170,22 +174,28 @@ class AppProvider extends ChangeNotifier {
       }
 
       // Ensure user doc exists (for anonymous or new users)
-      final existing = await _db.getUser(firebaseUser.uid);
-      if (existing == null) {
-        final dummyUser = AppUser(
-          id: firebaseUser.uid,
-          role: UserRole.seeker,
-          name: 'Demo Seeker',
-          headline: 'Job Seeker at RefSure',
-          title: 'Software Engineer',
-          location: 'Bangalore',
-          experience: 3,
-          skills: const ['Flutter', 'Dart', 'Firebase'],
-          bio: 'Demo profile for testing RefSure.',
-          email: firebaseUser.email ?? 'demo@refsure.com',
-          profileComplete: 50,
-        );
-        await _db.saveUser(dummyUser);
+      // Wrapped in try/catch so _loadUserData always runs even if save fails.
+      try {
+        final existing = await _db.getUser(firebaseUser.uid);
+        if (existing == null) {
+          final dummyUser = AppUser(
+            id: firebaseUser.uid,
+            role: UserRole.seeker,
+            name: firebaseUser.displayName ?? 'Demo User',
+            headline: 'Job Seeker at RefSure',
+            title: 'Software Engineer',
+            location: 'Bangalore',
+            experience: 3,
+            skills: const ['Flutter', 'Dart', 'Firebase'],
+            bio: 'Demo profile for testing RefSure.',
+            email: firebaseUser.email ?? 'demo@refsure.app',
+            profileComplete: 60,
+          );
+          await _db.saveUser(dummyUser);
+        }
+      } catch (e) {
+        debugPrint('[AppProvider._init] profile create error: \$e');
+        // Continue — _loadUserData will handle the null user case gracefully
       }
 
       await _loadUserData(firebaseUser.uid);
@@ -223,7 +233,10 @@ class AppProvider extends ChangeNotifier {
 
       final user = await _db.getUser(uid);
       if (user != null) {
+        // Set _currentUser immediately so profile screen shows without waiting for stream
+        _currentUser = user;
         _activeRole = user.role;
+        notifyListeners();
         if (user.role == UserRole.seeker) {
           _subs.add(_db.watchSeekerApplications(uid).listen((list) {
             _myApps = list;
@@ -243,8 +256,8 @@ class AppProvider extends ChangeNotifier {
       // Always stop loading after setup, even if user doc missing
       _loading = false;
       notifyListeners();
-      // Seed jobs if none exist
-      _db.seedSampleJobs();
+      // Seed jobs if none exist (use current uid as providerId so it passes Firestore rules)
+      _db.seedSampleJobs(uid);
       // Auto-seed full test dataset (idempotent — safe to run every launch)
       unawaited(TestDataSeeder.seed(
         FirebaseFirestore.instance,
@@ -304,6 +317,61 @@ class AppProvider extends ChangeNotifier {
     await _db.updateUser(_currentUser!.id, data);
   }
 
+  /// Last human-readable profile-save error (null when none).
+  String? profileError;
+
+  /// Creates a brand-new Firestore user doc from onboarding data.
+  /// Used when the Firebase Auth user exists but no Firestore doc was found.
+  /// Returns null on success, or a readable error message on failure.
+  /// The local user is set optimistically so the UI never gets stuck on the
+  /// "Profile not found" screen even if the Firestore write is slow/blocked.
+  Future<String?> createProfile(Map<String, dynamic> data) async {
+    profileError = null;
+    final uid = _auth.currentUid;
+    if (uid == null) {
+      profileError = 'You are not signed in. Please retry in a moment.';
+      notifyListeners();
+      return profileError;
+    }
+    final email = _auth.currentFirebaseUser?.email ?? '';
+    final role = UserRole.values.firstWhere(
+      (r) => r.name == (data['role'] as String?),
+      orElse: () => UserRole.seeker,
+    );
+    final user = AppUser(
+      id: uid,
+      role: role,
+      name: data['name'] as String? ?? '',
+      headline: data['headline'] as String? ?? '',
+      title: role == UserRole.provider ? 'Referrer' : 'Job Seeker',
+      location: '',
+      experience: 0,
+      skills: const [],
+      bio: '',
+      email: data['email'] as String? ?? email,
+      company: data['company'] as String?,
+      currentCompany: data['currentCompany'] as String?,
+      resumeUrl: data['resumeUrl'] as String?,
+      profileComplete: (data['profileComplete'] as num?)?.toInt() ?? 50,
+      activelyLooking: data['activelyLooking'] as bool? ?? false,
+    );
+    // Set immediately so the UI shows the dashboard instead of "Profile not
+    // found" while the Firestore write completes (or even if it fails).
+    _currentUser = user;
+    _activeRole  = user.role;
+    notifyListeners();
+    try {
+      await _db.saveUser(user);
+      return null;
+    } catch (e) {
+      debugPrint('createProfile save error: $e');
+      profileError =
+          'Your profile was set locally but could not be saved to the server: $e';
+      notifyListeners();
+      return profileError;
+    }
+  }
+
   /// Switches the user between Job Seeker and Referrer. Persists the new role
   /// to Firestore and rebuilds the role-scoped subscriptions so the rest of
   /// the app sees the right data immediately.
@@ -321,11 +389,29 @@ class AppProvider extends ChangeNotifier {
     await _loadUserData(_currentUser!.id);
   }
 
+  /// Last human-readable resume-upload error (null when none / cancelled).
+  String? resumeError;
+
+  /// Picks + uploads a resume. Returns the URL on success, null on
+  /// cancel OR failure. On failure, [resumeError] holds the reason.
   Future<String?> uploadResume() async {
-    if (_currentUser == null) return null;
-    final url = await _storage.uploadResumeFile(_currentUser!.id);
-    if (url != null) await updateProfile({'resumeUrl': url});
-    return url;
+    resumeError = null;
+    final uid = _currentUser?.id ?? _auth.currentUid;
+    if (uid == null) {
+      resumeError = 'You are not signed in yet. Please retry in a moment.';
+      return null;
+    }
+    try {
+      final url = await _storage.uploadResumeFile(uid);
+      if (url != null && _currentUser != null) {
+        await updateProfile({'resumeUrl': url});
+      }
+      return url;
+    } catch (e) {
+      resumeError = e.toString();
+      notifyListeners();
+      return null;
+    }
   }
 
   // ── Gratitudes ──────────────────────────────────────────────

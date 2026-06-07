@@ -20,12 +20,13 @@ final _shellKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 GoRouter buildRouter(AppProvider prov) => GoRouter(
   refreshListenable: prov,
   redirect: (context, state) {
-    final isGuest = prov.isGuest;
     final location = state.uri.path;
 
-    // Guest users land on the auth screen; authenticated users skip it.
-    if (isGuest && location != '/auth') return '/auth';
-    if (!isGuest && location == '/auth') return '/';
+    // Only fully signed-out users are forced to the auth screen.
+    // Anonymous (guest) demo sessions may browse the app and can still open
+    // /auth to create a full account; real users skip /auth.
+    if (prov.isSignedOut && location != '/auth') return '/auth';
+    if (!prov.isGuest && !prov.isSignedOut && location == '/auth') return '/';
 
     return null;
   },
@@ -99,15 +100,14 @@ class _ShellScaffold extends StatelessWidget {
   ];
 
   static const _providerItems = [
-    BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-    BottomNavigationBarItem(icon: Icon(Icons.work_outline),       activeIcon: Icon(Icons.work),      label: 'Jobs'),
-    BottomNavigationBarItem(icon: Icon(Icons.people_outline),     activeIcon: Icon(Icons.people),    label: 'Seekers'),
+    BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard),  label: 'Dashboard'),
+    BottomNavigationBarItem(icon: Icon(Icons.work_outline),       activeIcon: Icon(Icons.work),       label: 'Jobs'),
     BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline),activeIcon: Icon(Icons.chat_bubble),label: 'Messages'),
-    BottomNavigationBarItem(icon: Icon(Icons.person_outline),     activeIcon: Icon(Icons.person),    label: 'Profile'),
+    BottomNavigationBarItem(icon: Icon(Icons.person_outline),     activeIcon: Icon(Icons.person),     label: 'Profile'),
   ];
 
   static const _seekerRoutes   = ['/', '/jobs', '/providers', '/applications', '/profile'];
-  static const _providerRoutes = ['/', '/jobs', '/providers', '/messages',     '/profile'];
+  static const _providerRoutes = ['/', '/jobs', '/messages',                   '/profile'];
 
   int _currentIndex(String location, bool isProvider) {
     final routes = isProvider ? _providerRoutes : _seekerRoutes;
@@ -124,10 +124,37 @@ class _ShellScaffold extends StatelessWidget {
     final location   = GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
     final index      = _currentIndex(location, isProvider);
     final routes     = isProvider ? _providerRoutes : _seekerRoutes;
-    final unread     = prov.unreadCount;
+    final bannerLabel = isProvider ? 'Referral Provider Mode' : 'Referral Requester Mode';
+    final bannerIcon  = isProvider ? Icons.business_center : Icons.person_search;
+    final bannerColor = isProvider ? AppColors.primary : const Color(0xFF7C3AED);
 
     return Scaffold(
-      body: child,
+      body: Column(children: [
+        // ── Persistent Mode Banner ────────────────────────────────────
+        Material(
+          color: bannerColor,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(bannerIcon, size: 13, color: Colors.white70),
+                const SizedBox(width: 6),
+                Text(bannerLabel,
+                  style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600,
+                    color: Colors.white, letterSpacing: 0.4)),
+              ])))),
+        // Remove top safe-area padding for child screens — the banner above
+        // already consumed it via SafeArea, so inner Scaffolds must not
+        // re-inset for the status bar or we'd get double the gap.
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: child)),
+      ]),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
@@ -271,16 +298,19 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
   Future<void> _uploadResume() async {
     if (_uploading) return;
     setState(() { _uploading = true; _error = null; });
-    final url = await context.read<AppProvider>().uploadResume();
+    final prov = context.read<AppProvider>();
+    final url = await prov.uploadResume();
     if (!mounted) return;
     setState(() {
       _uploading = false;
       if (url != null) {
         _resumeUrl = url;
         _resumeName = 'Resume uploaded';
-      } else {
-        _error = 'Could not upload resume. Try again.';
+        _error = null;
+      } else if (prov.resumeError != null) {
+        _error = prov.resumeError;
       }
+      // else: user cancelled the picker — not an error
     });
   }
 

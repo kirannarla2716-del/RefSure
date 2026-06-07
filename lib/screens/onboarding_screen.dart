@@ -36,6 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    _error = null; // Always clear stale error on (re)entry
     final user = context.read<AppProvider>().currentUser;
     if (user != null) {
       final parts = user.name.trim().split(RegExp(r'\s+'));
@@ -60,7 +61,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String get _roleLabel => _isReferrer ? 'Referrer' : 'Job Seeker';
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    // Auto-redirect if user already has a complete profile (returning user or seeder ran).
+    // This handles the case where Firebase Auth session expired so the user had to
+    // sign up again — but their Firestore profile already exists.
+    final prov = context.watch<AppProvider>();
+    final user = prov.currentUser;
+    if (user != null && user.profileComplete >= 70 && !_saving) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/');
+      });
+    }
+    return Scaffold(
     backgroundColor: AppColors.bg,
     appBar: AppBar(
       title: const Text('Set up your profile'),
@@ -87,7 +99,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: _step == 0 ? _roleStep() : _detailsStep(),
       )),
     ])),
-  );
+    );
+  }
 
   // ── Step 1: role selection ──────────────────────────────────
   Widget _roleStep() => Column(
@@ -168,7 +181,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         fontSize: 14, fontWeight: FontWeight.w600,
         color: AppColors.textPrimary)),
       const SizedBox(width: 6),
-      Text(_isReferrer ? '(optional)' : '(required)',
+      Text('(optional)',  // CV optional — can be added later from profile
         style: GoogleFonts.inter(
           fontSize: 12, color: AppColors.textHint)),
     ]),
@@ -210,16 +223,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _uploadResume() async {
     if (_uploadingResume) return;
     setState(() { _uploadingResume = true; _error = null; });
-    final url = await context.read<AppProvider>().uploadResume();
+    final prov = context.read<AppProvider>();
+    final url = await prov.uploadResume();
     if (!mounted) return;
     setState(() {
       _uploadingResume = false;
       if (url != null) {
         _resumeUrl = url;
         _resumeName = 'Resume uploaded';
-      } else {
-        _error = 'Could not upload resume. Try again.';
+        _error = null;
+      } else if (prov.resumeError != null) {
+        // Real failure — show the actual cause.
+        _error = prov.resumeError;
       }
+      // else: user cancelled picker — stay silent
     });
   }
 
@@ -230,9 +247,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return 'Enter a valid email.';
     }
     if (_org.text.trim().isEmpty) return 'Enter your organisation.';
-    if (!_isReferrer && _resumeUrl == null) {
-      return 'Job Seekers need to upload a CV to continue.';
-    }
+// CV is optional — users can upload later from their profile
     return null;
   }
 
@@ -261,13 +276,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     };
     if (_resumeUrl != null) updates['resumeUrl'] = _resumeUrl;
 
-    await prov.updateProfile(updates);
-    if (_role != prov.currentUser?.role) {
-      await prov.setActiveRole(_role!);
+    String? err;
+    if (prov.currentUser == null) {
+      err = await prov.createProfile(updates);
+    } else {
+      await prov.updateProfile(updates);
+      if (_role != prov.currentUser?.role) {
+        await prov.setActiveRole(_role!);
+      }
     }
 
     if (!mounted) return;
     setState(() => _saving = false);
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), backgroundColor: AppColors.red));
+    }
     context.go('/');
   }
 }

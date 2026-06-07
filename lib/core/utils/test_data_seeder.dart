@@ -4,14 +4,8 @@
 // Writes realistic QA seed data into Firestore so every screen in RefSure
 // can be exercised without manual data entry.
 //
-// ─── HOW TO INVOKE ─────────────────────────────────────────────────────────
-//   await TestDataSeeder.seed(FirebaseFirestore.instance);
-//   // Optionally pass currentUserId to also update the logged-in user's profile:
-//   await TestDataSeeder.seed(FirebaseFirestore.instance, currentUserId: uid);
-//
 // ─── GUARD ─────────────────────────────────────────────────────────────────
-//   The method checks for document `_meta/seed_status` before writing.
-//   If it already exists the call is a no-op, so it's safe to invoke twice.
+//   Checks _meta/seed_status version. Bump _kVersion to force a re-seed.
 // ───────────────────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,806 +13,771 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TestDataSeeder {
   TestDataSeeder._();
 
-  // ── Fixed deterministic IDs ──────────────────────────────────────────────
-  // Guard lives at _meta/seed_status to avoid polluting any user collection.
   static const _metaCollection = '_meta';
   static const _guardDocId     = 'seed_status';
+  static const _kVersion       = 7; // bump to re-seed
 
-  static const _providerIds = [
-    'seed_provider_001',
-    'seed_provider_002',
-    'seed_provider_003',
-    'seed_provider_004',
-    'seed_provider_005',
+  // Deterministic IDs so re-seeding is idempotent
+  static const _jobIds = [
+    'seed_job_001', 'seed_job_002', 'seed_job_003', 'seed_job_004', 'seed_job_005',
+    'seed_job_006', 'seed_job_007', 'seed_job_008', 'seed_job_009', 'seed_job_010',
+    'seed_job_011', 'seed_job_012', 'seed_job_013', 'seed_job_014', 'seed_job_015',
   ];
 
-  static const _jobIds = [
-    'seed_job_001', // Google  – Flutter
-    'seed_job_002', // Swiggy  – PM
-    'seed_job_003', // Amazon  – Frontend SDE
-    'seed_job_004', // Flipkart – Data Eng
-    'seed_job_005', // Zepto   – Growth
-    'seed_job_006', // Razorpay – UX
+  static const _providerIds = [
+    'seed_provider_001', 'seed_provider_002', 'seed_provider_003',
+    'seed_provider_004', 'seed_provider_005', 'seed_provider_006',
   ];
 
   static const _appIds = [
-    'seed_app_google',
-    'seed_app_swiggy',
-    'seed_app_zepto',
-    'seed_app_flipkart',
+    'seed_app_001', 'seed_app_002', 'seed_app_003', 'seed_app_004',
+    'seed_app_005', 'seed_app_006', 'seed_app_007', 'seed_app_008',
   ];
 
-  static const _gratitudeIds = [
-    'seed_gratitude_001',
-    'seed_gratitude_002',
-    'seed_gratitude_003',
+  static const _msgIds = [
+    'seed_msg_001', 'seed_msg_002', 'seed_msg_003', 'seed_msg_004',
+    'seed_msg_005', 'seed_msg_006', 'seed_msg_007', 'seed_msg_008',
+    'seed_msg_009', 'seed_msg_010',
+  ];
+
+  static const _notifIds = [
+    'seed_notif_001', 'seed_notif_002', 'seed_notif_003',
+    'seed_notif_004', 'seed_notif_005',
   ];
 
   // ── Public entry point ───────────────────────────────────────────────────
-
-  /// Seeds all test data into Firestore.
-  ///
-  /// [db] is the [FirebaseFirestore] instance to write to.
-  /// [currentUserId] is optional — when provided the logged-in user's profile
-  /// is updated to the Kiran Narla seeker persona and applications are written
-  /// with their UID as [seekerId].
   static Future<void> seed(FirebaseFirestore db, {String? currentUserId}) async {
+    final guard = await db.collection(_metaCollection).doc(_guardDocId).get();
+    if (guard.exists && (guard.data()?['version'] as int? ?? 0) >= _kVersion) return;
 
-    // ── Guard: skip if _meta/seed_status already exists ─────────────────
-    final guard = await db
-        .collection(_metaCollection)
-        .doc(_guardDocId)
-        .get();
-    if (guard.exists) return;
-
-    // ── Batch 1: Provider user-docs + optional current-user update ───────
-    final batch1 = db.batch();
     final now = Timestamp.now();
+    final uid = currentUserId ?? 'seed_user';
 
+    // Batch 1: Create/upsert current user profile (set+merge works even if doc missing)
     if (currentUserId != null) {
-      // Update the logged-in user to the Kiran Narla seeker persona
-      batch1.update(db.collection('users').doc(currentUserId), {
-      'name': 'Kiran Narla',
-      'headline': 'Senior Flutter Developer · Open to referrals',
-      'title': 'Senior Flutter Developer',
-      'location': 'Bangalore',
-      'experience': 5,
-      'skills': ['Flutter', 'Dart', 'Firebase', 'Product Management', 'Figma'],
-      'preferredRoles': ['Flutter Developer', 'Product Manager', 'Mobile Lead'],
-      'bio': 'Senior Flutter developer with 5 years building consumer apps.',
-      'activelyLooking': true,
-      'profileComplete': 85,
-      'role': 'seeker',
-      'noticePeriod': '30 days',
-      'expectedSalary': '35',
-      'updatedAt': now,
-      'lastActiveAt': now,
-      });
+      final b = db.batch();
+      b.set(db.collection('users').doc(currentUserId), {
+        'id': currentUserId,
+        'name': 'Kiran Narla',
+        'email': 'demo@refsure.app',
+        'headline': 'Senior Flutter Developer · Open to referrals',
+        'title': 'Senior Flutter Developer',
+        'location': 'Bangalore',
+        'experience': 5,
+        'skills': ['Flutter', 'Dart', 'Firebase', 'Product Management', 'Figma'],
+        'preferredRoles': ['Flutter Developer', 'Product Manager', 'Mobile Lead'],
+        'bio': 'Senior Flutter developer with 5 years building consumer apps at scale. '
+            'Open to referrals at top-tier product companies.',
+        'activelyLooking': true,
+        'profileComplete': 90,
+        'role': 'seeker',
+        'noticePeriod': '30 days',
+        'expectedSalary': '35',
+        'photoUrl': null,
+        'resumeUrl': 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf',
+        'linkedinUrl': 'https://linkedin.com/in/kirannarla',
+        'verified': false,
+        'orgVerified': false,
+        'orgEmail': null,
+        'referralsReceived': 8,
+        'referralsMade': 0,
+        'successfulReferrals': 0,
+        'totalJobsPosted': 0,
+        'successRate': 0,
+        'responseRate': null,
+        'trustScore': 0.0,
+        'gratitudesReceived': 3,
+        'onboardingSource': 'email',
+        'createdAt': now,
+        'updatedAt': now,
+        'lastActiveAt': now,
+      }, SetOptions(merge: true));
+      await b.commit();
     }
 
-    // Seed 5 provider docs (ordered by referralsMade: 10, 8, 6, 4, 2)
+    // Batch 1b: Referral providers (so the Referrers tab + leaderboard populate).
+    // Rules allow any authenticated user to CREATE user docs, so this is permitted.
+    final bp = db.batch();
     final providers = _buildProviders(now);
-    for (var i = 0; i < providers.length; i++) {
-      batch1.set(
-        db.collection('users').doc(_providerIds[i]),
-        providers[i],
-        SetOptions(merge: false),
-      );
+    for (var i = 0; i < providers.length && i < _providerIds.length; i++) {
+      bp.set(db.collection('users').doc(_providerIds[i]),
+          {...providers[i], 'id': _providerIds[i]}, SetOptions(merge: true));
     }
+    await bp.commit();
 
-    await batch1.commit();
-
-    // ── Batch 2: Jobs ────────────────────────────────────────────────────
-    final batch2 = db.batch();
-    final jobs = _buildJobs(now);
-    for (var i = 0; i < jobs.length; i++) {
-      batch2.set(
-        db.collection('jobs').doc(_jobIds[i]),
-        {...jobs[i], 'id': _jobIds[i]},
-        SetOptions(merge: false),
-      );
+    // Batch 2: 15 Jobs (all providerId = uid to satisfy live Firestore rules)
+    final jobs = _buildJobs(now, providerId: uid);
+    // Firestore batch limit is 500 ops; split into two batches just to be safe
+    final b2a = db.batch();
+    for (var i = 0; i < 8 && i < jobs.length; i++) {
+      b2a.set(db.collection('jobs').doc(_jobIds[i]),
+          {...jobs[i], 'id': _jobIds[i]}, SetOptions(merge: false));
     }
-    await batch2.commit();
+    await b2a.commit();
 
-    // ── Batch 3: 4 Applications (underReview / underReview / pending / hired) ─
-    final batch3 = db.batch();
-    final seekerId = currentUserId ?? 'seed_seeker_001';
-    final apps = _buildApplications(seekerId, now);
+    final b2b = db.batch();
+    for (var i = 8; i < jobs.length; i++) {
+      b2b.set(db.collection('jobs').doc(_jobIds[i]),
+          {...jobs[i], 'id': _jobIds[i]}, SetOptions(merge: false));
+    }
+    await b2b.commit();
+
+    // Batch 3: 8 Applications (seekerId = uid)
+    final b3 = db.batch();
+    final apps = _buildApplications(uid, now);
     for (var i = 0; i < apps.length; i++) {
-      batch3.set(
-        db.collection('applications').doc(_appIds[i]),
-        {...apps[i], 'id': _appIds[i]},
-        SetOptions(merge: false),
-      );
+      b3.set(db.collection('applications').doc(_appIds[i]),
+          {...apps[i], 'id': _appIds[i]}, SetOptions(merge: false));
     }
-    await batch3.commit();
+    await b3.commit();
 
-    // ── Batch 4: 3 Gratitudes ────────────────────────────────────────────
-    final batch4 = db.batch();
-    final gratitudes = _buildGratitudes(seekerId, now);
-    for (var i = 0; i < gratitudes.length; i++) {
-      batch4.set(
-        db.collection('gratitudes').doc(_gratitudeIds[i]),
-        {...gratitudes[i], 'id': _gratitudeIds[i]},
-        SetOptions(merge: false),
-      );
+    // Batch 4: Messages (fromId or toId = uid)
+    final b4 = db.batch();
+    final msgs = _buildMessages(uid, now);
+    for (var i = 0; i < msgs.length; i++) {
+      b4.set(db.collection('messages').doc(_msgIds[i]),
+          msgs[i], SetOptions(merge: false));
     }
-    await batch4.commit();
+    await b4.commit();
 
-    // ── Batch 5: 5 Leaderboard entries + guard doc ────────────────────────
-    final batch5 = db.batch();
-    final leaderboard = _buildLeaderboard(now);
-    for (var i = 0; i < leaderboard.length; i++) {
-      batch5.set(
-        db.collection('leaderboard')
-            .doc("lb_entry_${(i + 1).toString().padLeft(3, '0')}"),
-        leaderboard[i],
-        SetOptions(merge: false),
-      );
+    // Batch 5: Notifications (userId = uid)
+    final b5 = db.batch();
+    final notifs = _buildNotifications(uid, now);
+    for (var i = 0; i < notifs.length; i++) {
+      b5.set(db.collection('notifications').doc(_notifIds[i]),
+          notifs[i], SetOptions(merge: false));
     }
-    // Write the guard last — a partial failure won't set the guard
-    batch5.set(
-      db.collection(_metaCollection).doc(_guardDocId),
-      {
-        'seededAt': now,
-        'version': 1,
-        'collections': [
-          'users', 'jobs', 'applications', 'gratitudes', 'leaderboard'
-        ],
-      },
-    );
-    await batch5.commit();
+    await b5.commit();
+
+    // Guard doc — write last
+    final b6 = db.batch();
+    b6.set(db.collection(_metaCollection).doc(_guardDocId), {
+      'seededAt': now,
+      'version': _kVersion,
+      'collections': ['users', 'jobs', 'applications', 'messages', 'notifications'],
+    });
+    await b6.commit();
   }
 
-  // ── Builders ─────────────────────────────────────────────────────────────
+  // ── Referral providers ────────────────────────────────────────────────────
+  static List<Map<String, dynamic>> _buildProviders(Timestamp now) {
+    Map<String, dynamic> p({
+      required String name,
+      required String company,
+      required String title,
+      required String location,
+      required List<String> skills,
+      required int experience,
+      required int referralsMade,
+      required int successfulReferrals,
+      required int gratitudesReceived,
+      required bool verified,
+      required bool orgVerified,
+      required double responseRate,
+      required int avgResponseHours,
+      String? headline,
+    }) => {
+          'role': 'provider',
+          'name': name,
+          'company': company,
+          'currentCompany': company,
+          'title': title,
+          'headline': headline ?? '$title at $company · Happy to refer',
+          'location': location,
+          'experience': experience,
+          'skills': skills,
+          'preferredRoles': const <String>[],
+          'bio': 'I refer strong candidates at $company. '
+              'Send a tailored note and your resume and I will take a look.',
+          'photoUrl': null,
+          'email': '${name.toLowerCase().replaceAll(' ', '.')}@example.com',
+          'orgEmail': orgVerified
+              ? '${name.toLowerCase().split(' ').first}@${company.toLowerCase().replaceAll(' ', '')}.com'
+              : null,
+          'linkedinUrl': 'https://linkedin.com/in/${name.toLowerCase().replaceAll(' ', '')}',
+          'resumeUrl': null,
+          'verified': verified,
+          'orgVerified': orgVerified,
+          'activelyLooking': false,
+          'profileComplete': 95,
+          'referralsReceived': 0,
+          'referralsMade': referralsMade,
+          'successfulReferrals': successfulReferrals,
+          'totalJobsPosted': 2 + (referralsMade ~/ 5),
+          'successRate': successfulReferrals == 0
+              ? 0
+              : ((successfulReferrals / referralsMade) * 100).round(),
+          'responseTime': avgResponseHours <= 12 ? '< 12h' : '< 48h',
+          'avgResponseHours': avgResponseHours,
+          'responseRate': responseRate,
+          // trustScore is recomputed by toFirestore() in the app, but seed an
+          // explicit value here so watchProviders() can sort immediately.
+          'trustScore': (orgVerified ? 30 : 0) +
+              (verified ? 20 : 0) +
+              15 +
+              (responseRate >= 0.8 ? 10 : 0) +
+              (referralsMade >= 5 ? 5 : 0) +
+              (referralsMade >= 10 ? 5 : 0) +
+              (referralsMade >= 20 ? 5 : 0) +
+              (referralsMade >= 30 ? 5 : 0),
+          'gratitudesReceived': gratitudesReceived,
+          'onboardingSource': 'email',
+          'createdAt': now,
+          'updatedAt': now,
+          'lastActiveAt': now,
+        };
 
-  static List<Map<String, dynamic>> _buildProviders(Timestamp now) => [
-    {
-      'id': _providerIds[0],
-      'role': 'provider',
-      'name': 'Arjun Mehta',
-      'headline': 'Engineering Manager at Google India',
-      'company': 'Google',
-      'title': 'Engineering Manager',
-      'location': 'Bangalore',
-      'experience': 10,
-      'skills': ['Flutter', 'Dart', 'Firebase', 'System Design', 'Cloud Architecture'],
-      'preferredRoles': [],
-      'bio': 'EM at Google India with 10 years in distributed systems. '
-          'Happy to refer strong Flutter and backend engineers.',
-      'verified': true,
-      'orgVerified': true,
-      'orgEmail': 'arjun.mehta@google.com',
-      'email': 'arjun@example.com',
-      'photoUrl': null,
-      'linkedinUrl': 'https://linkedin.com/in/arjunmehta',
-      'resumeUrl': null,
-      'activelyLooking': false,
-      'profileComplete': 95,
-      'referralsReceived': 0,
-      'referralsMade': 10,
-      'successfulReferrals': 7,
-      'totalJobsPosted': 3,
-      'successRate': 70,
-      'responseTime': '< 24h',
-      'avgResponseHours': 20,
-      'responseRate': 0.92,
-      'trustScore': 88.0,
-      'gratitudesReceived': 5,
-      'onboardingSource': 'manual',
-      'createdAt': now,
-      'lastActiveAt': now,
-      'updatedAt': now,
-    },
-    {
-      'id': _providerIds[1],
-      'role': 'provider',
-      'name': 'Priya Sharma',
-      'headline': 'Senior Product Manager at Flipkart',
-      'company': 'Flipkart',
-      'title': 'Senior Product Manager',
-      'location': 'Bangalore',
-      'experience': 8,
-      'skills': ['Product Management', 'Analytics', 'SQL', 'Figma', 'A/B Testing'],
-      'preferredRoles': [],
-      'bio': 'Senior PM at Flipkart working on growth products. '
-          'Passionate about connecting talent with great opportunities.',
-      'verified': true,
-      'orgVerified': true,
-      'orgEmail': 'priya.sharma@flipkart.com',
-      'email': 'priya@example.com',
-      'photoUrl': null,
-      'linkedinUrl': null,
-      'resumeUrl': null,
-      'activelyLooking': false,
-      'profileComplete': 90,
-      'referralsReceived': 0,
-      'referralsMade': 8,
-      'successfulReferrals': 5,
-      'totalJobsPosted': 2,
-      'successRate': 62,
-      'responseTime': '< 48h',
-      'avgResponseHours': 36,
-      'responseRate': 0.88,
-      'trustScore': 82.0,
-      'gratitudesReceived': 4,
-      'onboardingSource': 'manual',
-      'createdAt': now,
-      'lastActiveAt': now,
-      'updatedAt': now,
-    },
-    {
-      'id': _providerIds[2],
-      'role': 'provider',
-      'name': 'Rohan Verma',
-      'headline': 'Staff Engineer at Swiggy',
-      'company': 'Swiggy',
-      'title': 'Staff Engineer',
-      'location': 'Bangalore',
-      'experience': 9,
-      'skills': ['Go', 'Python', 'Kafka', 'Kubernetes', 'System Design'],
-      'preferredRoles': [],
-      'bio': 'Staff Engineer at Swiggy building reliable food delivery infrastructure. '
-          'Love mentoring and referring talented engineers.',
-      'verified': false,
-      'orgVerified': true,
-      'orgEmail': 'rohan.verma@swiggy.in',
-      'email': 'rohan@example.com',
-      'photoUrl': null,
-      'linkedinUrl': null,
-      'resumeUrl': null,
-      'activelyLooking': false,
-      'profileComplete': 80,
-      'referralsReceived': 0,
-      'referralsMade': 6,
-      'successfulReferrals': 4,
-      'totalJobsPosted': 1,
-      'successRate': 66,
-      'responseTime': '< 48h',
-      'avgResponseHours': 40,
-      'responseRate': 0.80,
-      'trustScore': 74.0,
-      'gratitudesReceived': 3,
-      'onboardingSource': 'manual',
-      'createdAt': now,
-      'lastActiveAt': now,
-      'updatedAt': now,
-    },
-    {
-      'id': _providerIds[3],
-      'role': 'provider',
-      'name': 'Nisha Kapoor',
-      'headline': 'Data Engineering Lead at Amazon',
-      'company': 'Amazon',
-      'title': 'Data Engineering Lead',
-      'location': 'Hyderabad',
-      'experience': 7,
-      'skills': ['Python', 'Spark', 'SQL', 'AWS Redshift', 'dbt'],
-      'preferredRoles': [],
-      'bio': 'Data Engineering Lead at Amazon India. '
-          'Hiring data engineers with strong Python and Spark skills.',
-      'verified': false,
-      'orgVerified': false,
-      'orgEmail': null,
-      'email': 'nisha@example.com',
-      'photoUrl': null,
-      'linkedinUrl': null,
-      'resumeUrl': null,
-      'activelyLooking': false,
-      'profileComplete': 65,
-      'referralsReceived': 0,
-      'referralsMade': 4,
-      'successfulReferrals': 2,
-      'totalJobsPosted': 1,
-      'successRate': 50,
-      'responseTime': '< 72h',
-      'avgResponseHours': 60,
-      'responseRate': 0.70,
-      'trustScore': 55.0,
-      'gratitudesReceived': 2,
-      'onboardingSource': 'manual',
-      'createdAt': now,
-      'lastActiveAt': now,
-      'updatedAt': now,
-    },
-    {
-      'id': _providerIds[4],
-      'role': 'provider',
-      'name': 'Vikram Singh',
-      'headline': 'UX Design Lead at Razorpay',
-      'company': 'Razorpay',
-      'title': 'UX Design Lead',
-      'location': 'Bangalore',
-      'experience': 6,
-      'skills': ['Figma', 'UX Research', 'Prototyping', 'Design Systems', 'Framer'],
-      'preferredRoles': [],
-      'bio': 'UX Design Lead at Razorpay. '
-          'Building the next generation of fintech experiences.',
-      'verified': false,
-      'orgVerified': false,
-      'orgEmail': null,
-      'email': 'vikram@example.com',
-      'photoUrl': null,
-      'linkedinUrl': null,
-      'resumeUrl': null,
-      'activelyLooking': false,
-      'profileComplete': 60,
-      'referralsReceived': 0,
-      'referralsMade': 2,
-      'successfulReferrals': 1,
-      'totalJobsPosted': 1,
-      'successRate': 50,
-      'responseTime': '< 72h',
-      'avgResponseHours': 72,
-      'responseRate': 0.65,
-      'trustScore': 42.0,
-      'gratitudesReceived': 1,
-      'onboardingSource': 'manual',
-      'createdAt': now,
-      'lastActiveAt': now,
-      'updatedAt': now,
-    },
-  ];
-
-  static List<Map<String, dynamic>> _buildJobs(Timestamp now) {
-    final deadline = '2026-08-31';
     return [
+      p(name: 'Aarav Mehta', company: 'Google India', title: 'Staff Software Engineer',
+        location: 'Bangalore', skills: ['Flutter', 'Dart', 'Go', 'Kubernetes'],
+        experience: 9, referralsMade: 34, successfulReferrals: 21, gratitudesReceived: 27,
+        verified: true, orgVerified: true, responseRate: 0.95, avgResponseHours: 8),
+      p(name: 'Priya Sharma', company: 'Swiggy', title: 'Group Product Manager',
+        location: 'Bangalore', skills: ['Product Management', 'Analytics', 'A/B Testing'],
+        experience: 8, referralsMade: 22, successfulReferrals: 12, gratitudesReceived: 18,
+        verified: true, orgVerified: true, responseRate: 0.9, avgResponseHours: 10),
+      p(name: 'Rohan Verma', company: 'Amazon', title: 'SDE-III',
+        location: 'Hyderabad', skills: ['React', 'TypeScript', 'GraphQL', 'AWS'],
+        experience: 7, referralsMade: 15, successfulReferrals: 8, gratitudesReceived: 11,
+        verified: true, orgVerified: false, responseRate: 0.82, avgResponseHours: 24),
+      p(name: 'Ananya Iyer', company: 'Flipkart', title: 'Senior Data Engineer',
+        location: 'Bangalore', skills: ['Python', 'Spark', 'Kafka', 'Airflow'],
+        experience: 6, referralsMade: 11, successfulReferrals: 5, gratitudesReceived: 9,
+        verified: false, orgVerified: true, responseRate: 0.88, avgResponseHours: 18),
+      p(name: 'Karthik Nair', company: 'Microsoft', title: 'Principal Engineer',
+        location: 'Hyderabad', skills: ['C#', '.NET', 'Azure', 'Distributed Systems'],
+        experience: 12, referralsMade: 28, successfulReferrals: 17, gratitudesReceived: 22,
+        verified: true, orgVerified: true, responseRate: 0.93, avgResponseHours: 12),
+      p(name: 'Sneha Reddy', company: 'Razorpay', title: 'Engineering Manager',
+        location: 'Bangalore', skills: ['Java', 'Spring', 'Microservices', 'System Design'],
+        experience: 10, referralsMade: 6, successfulReferrals: 3, gratitudesReceived: 5,
+        verified: true, orgVerified: false, responseRate: 0.8, avgResponseHours: 36),
+    ];
+  }
+
+  // ── Jobs ─────────────────────────────────────────────────────────────────
+  static List<Map<String, dynamic>> _buildJobs(Timestamp now, {required String providerId}) {
+    return [
+      // 001 — Google Flutter
       {
-        // seed_job_001 — Google Flutter
-        'providerId': _providerIds[0],
-        'company': 'Google India',
-        'companyLogo': 'G',
-        'title': 'Senior Flutter Developer',
-        'department': 'Mobile Platform',
-        'location': 'Bangalore',
-        'workMode': 'Remote',
-        'minExp': 4,
-        'maxExp': 8,
-        'salaryMin': 30,
-        'salaryMax': 45,
+        'providerId': providerId, 'company': 'Google India', 'companyLogo': 'G',
+        'title': 'Senior Flutter Developer', 'department': 'Mobile Platform',
+        'location': 'Bangalore', 'workMode': 'Remote',
+        'minExp': 4, 'maxExp': 8, 'salaryMin': 40, 'salaryMax': 60,
         'skills': ['Flutter', 'Dart', 'Firebase'],
         'preferredSkills': ['Go', 'gRPC', 'Kubernetes'],
-        'tags': ['mobile', 'flutter', 'remote', 'hot'],
-        'description':
-            'Join Google India\'s Mobile Platform team to build next-generation Flutter '
+        'tags': ['mobile', 'flutter', 'remote'],
+        'description': 'Join Google India\'s Mobile Platform team to build next-generation Flutter '
             'apps used by hundreds of millions of users worldwide. You will own critical '
             'features end-to-end, work with world-class engineers, and ship code that '
-            'reaches users across Android and iOS. Strong Flutter and Dart skills required; '
-            'Firebase experience is a plus.',
-        'providerNote': 'Hiring bar is high — best to have open-source Flutter contributions.',
-        'status': 'active',
-        'applicants': 23,
-        'viewCount': 145,
-        'deadline': deadline,
-        'postedAt': now,
-        'jobRefId': 'GGL-FLT-2026',
-        'isHot': true,
-        'source': 'manual',
-        'externalUrl': null,
+            'reaches users across Android and iOS. Strong Flutter and Dart skills required.',
+        'providerNote': 'Hiring bar is high — open-source Flutter contributions help.',
+        'status': 'active', 'applicants': 23, 'viewCount': 145,
+        'deadline': '2026-08-31', 'postedAt': now, 'jobRefId': 'GGL-FLT-2026',
+        'isHot': true, 'source': 'manual', 'externalUrl': null,
       },
+      // 002 — Swiggy PM
       {
-        // seed_job_002 — Swiggy PM
-        'providerId': _providerIds[2],
-        'company': 'Swiggy',
-        'companyLogo': 'S',
-        'title': 'Product Manager',
-        'department': 'Consumer Growth',
-        'location': 'Bangalore',
-        'workMode': 'Hybrid',
-        'minExp': 3,
-        'maxExp': 6,
-        'salaryMin': 25,
-        'salaryMax': 35,
-        'skills': ['Product Management', 'Figma', 'Analytics'],
-        'preferredSkills': ['SQL', 'A/B Testing', 'Growth Hacking'],
-        'tags': ['product', 'growth', 'consumer'],
-        'description':
-            'Drive growth for Swiggy\'s core consumer experience. You will define the '
+        'providerId': providerId, 'company': 'Swiggy', 'companyLogo': 'S',
+        'title': 'Product Manager – Consumer Growth', 'department': 'Consumer',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 3, 'maxExp': 6, 'salaryMin': 25, 'salaryMax': 35,
+        'skills': ['Product Management', 'Analytics', 'Figma'],
+        'preferredSkills': ['SQL', 'A/B Testing'],
+        'tags': ['product', 'growth'],
+        'description': 'Drive growth for Swiggy\'s core consumer experience. Define the '
             'product roadmap for acquisition and retention features, run A/B experiments, '
-            'and collaborate with design, data, and engineering to ship impactful features. '
-            'Prior experience with consumer-facing products and strong analytical skills required.',
+            'and collaborate with design, data, and engineering to ship impactful features.',
         'providerNote': null,
-        'status': 'active',
-        'applicants': 18,
-        'viewCount': 112,
-        'deadline': deadline,
-        'postedAt': now,
-        'jobRefId': 'SWG-PM-2026',
-        'isHot': false,
-        'source': 'manual',
-        'externalUrl': null,
+        'status': 'active', 'applicants': 18, 'viewCount': 112,
+        'deadline': '2026-08-15', 'postedAt': now, 'jobRefId': 'SWG-PM-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
       },
+      // 003 — Amazon SDE-II Frontend
       {
-        // seed_job_003 — Amazon SDE-II Frontend
-        'providerId': _providerIds[3],
-        'company': 'Amazon',
-        'companyLogo': 'A',
-        'title': 'SDE-II Frontend',
-        'department': 'Prime Video',
-        'location': 'Hyderabad',
-        'workMode': 'Hybrid',
-        'minExp': 3,
-        'maxExp': 6,
-        'salaryMin': 20,
-        'salaryMax': 30,
+        'providerId': providerId, 'company': 'Amazon', 'companyLogo': 'A',
+        'title': 'SDE-II Frontend', 'department': 'Prime Video',
+        'location': 'Hyderabad', 'workMode': 'Hybrid',
+        'minExp': 3, 'maxExp': 6, 'salaryMin': 28, 'salaryMax': 40,
         'skills': ['React', 'JavaScript', 'TypeScript'],
-        'preferredSkills': ['GraphQL', 'Redux', 'Jest'],
-        'tags': ['frontend', 'react', 'amazon'],
-        'description':
-            'Build the Prime Video web experience serving 200M+ subscribers. '
-            'You will own critical player UI components, streaming quality dashboards, '
-            'and the recommendation carousel. Strong React and TypeScript fundamentals '
-            'required. Experience with video streaming tech is a bonus.',
-        'providerNote': 'Focus on LP answers in the interview — Leadership Principles matter.',
-        'status': 'active',
-        'applicants': 41,
-        'viewCount': 230,
-        'deadline': deadline,
-        'postedAt': now,
-        'jobRefId': 'AMZ-SDE2-2026',
-        'isHot': false,
-        'source': 'manual',
-        'externalUrl': null,
+        'preferredSkills': ['GraphQL', 'Redux'],
+        'tags': ['frontend', 'react'],
+        'description': 'Build the Prime Video web experience serving 200M+ subscribers. '
+            'Own critical player UI components, streaming quality dashboards, '
+            'and the recommendation carousel. Strong React and TypeScript fundamentals required.',
+        'providerNote': 'Focus on Leadership Principles in the interview.',
+        'status': 'active', 'applicants': 41, 'viewCount': 230,
+        'deadline': '2026-09-01', 'postedAt': now, 'jobRefId': 'AMZ-SDE2-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
       },
+      // 004 — Flipkart Data Engineer
       {
-        // seed_job_004 — Flipkart Data Engineer
-        'providerId': _providerIds[1],
-        'company': 'Flipkart',
-        'companyLogo': 'F',
-        'title': 'Data Engineer',
-        'department': 'Data Platform',
-        'location': 'Bangalore',
-        'workMode': 'Hybrid',
-        'minExp': 2,
-        'maxExp': 5,
-        'salaryMin': 18,
-        'salaryMax': 25,
+        'providerId': providerId, 'company': 'Flipkart', 'companyLogo': 'F',
+        'title': 'Data Engineer', 'department': 'Data Platform',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 2, 'maxExp': 5, 'salaryMin': 18, 'salaryMax': 28,
         'skills': ['Python', 'Spark', 'SQL'],
         'preferredSkills': ['Kafka', 'dbt', 'Airflow'],
         'tags': ['data', 'backend', 'python'],
-        'description':
-            'Join Flipkart\'s Data Platform team to build scalable ETL pipelines processing '
-            'petabytes of e-commerce data daily. You will own pipeline reliability, design '
-            'data models, and enable analytics across business units. Python and Spark expertise '
-            'required; Airflow and dbt experience are a strong plus.',
+        'description': 'Join Flipkart\'s Data Platform team to build scalable ETL pipelines '
+            'processing petabytes of e-commerce data daily. Own pipeline reliability, '
+            'design data models, and enable analytics across business units.',
         'providerNote': null,
-        'status': 'active',
-        'applicants': 29,
-        'viewCount': 175,
-        'deadline': deadline,
-        'postedAt': now,
-        'jobRefId': 'FLK-DE-2026',
-        'isHot': false,
-        'source': 'manual',
-        'externalUrl': null,
+        'status': 'active', 'applicants': 29, 'viewCount': 175,
+        'deadline': '2026-08-20', 'postedAt': now, 'jobRefId': 'FLK-DE-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
       },
+      // 005 — Zepto Growth Manager
       {
-        // seed_job_005 — Zepto Growth Manager
-        'providerId': _providerIds[0],
-        'company': 'Zepto',
-        'companyLogo': 'Z',
-        'title': 'Growth Manager',
-        'department': 'Marketing',
-        'location': 'Mumbai',
-        'workMode': 'On-site',
-        'minExp': 2,
-        'maxExp': 5,
-        'salaryMin': 15,
-        'salaryMax': 22,
+        'providerId': providerId, 'company': 'Zepto', 'companyLogo': 'Z',
+        'title': 'Growth Manager', 'department': 'Marketing',
+        'location': 'Mumbai', 'workMode': 'On-site',
+        'minExp': 2, 'maxExp': 5, 'salaryMin': 15, 'salaryMax': 22,
         'skills': ['Growth', 'Analytics', 'SQL'],
         'preferredSkills': ['Firebase Analytics', 'Clevertap', 'Meta Ads'],
-        'tags': ['growth', 'marketing', 'startup', 'urgent'],
-        'description':
-            'Drive user acquisition and retention for Zepto\'s 10-minute grocery delivery '
-            'across 25 cities. You will own paid performance channels, referral programmes, '
-            'and reactivation campaigns. Strong analytical mindset and hands-on experience '
-            'with growth tools required.',
+        'tags': ['growth', 'marketing', 'startup'],
+        'description': 'Drive user acquisition and retention for Zepto\'s 10-minute grocery '
+            'delivery across 25 cities. Own paid performance channels, referral programmes, '
+            'and reactivation campaigns.',
         'providerNote': null,
-        'status': 'active',
-        'applicants': 12,
-        'viewCount': 89,
-        'deadline': deadline,
-        'postedAt': now,
-        'jobRefId': 'ZPT-GM-2026',
-        'isHot': true,
-        'source': 'manual',
-        'externalUrl': null,
+        'status': 'active', 'applicants': 12, 'viewCount': 89,
+        'deadline': '2026-07-31', 'postedAt': now, 'jobRefId': 'ZPT-GM-2026',
+        'isHot': true, 'source': 'manual', 'externalUrl': null,
       },
+      // 006 — Razorpay UX Designer
       {
-        // seed_job_006 — Razorpay UX Designer
-        'providerId': _providerIds[4],
-        'company': 'Razorpay',
-        'companyLogo': 'R',
-        'title': 'UX Designer',
-        'department': 'Design',
-        'location': 'Bangalore',
-        'workMode': 'Hybrid',
-        'minExp': 2,
-        'maxExp': 5,
-        'salaryMin': 12,
-        'salaryMax': 18,
-        'skills': ['Figma', 'UX Research'],
-        'preferredSkills': ['Framer', 'Zeroheight', 'Design Systems'],
+        'providerId': providerId, 'company': 'Razorpay', 'companyLogo': 'R',
+        'title': 'Senior UX Designer', 'department': 'Design',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 3, 'maxExp': 6, 'salaryMin': 18, 'salaryMax': 28,
+        'skills': ['Figma', 'UX Research', 'Prototyping'],
+        'preferredSkills': ['Framer', 'Design Systems'],
         'tags': ['design', 'ux', 'fintech'],
-        'description':
-            'Shape the design of Razorpay\'s merchant and consumer products used by '
-            '8M+ businesses. You will conduct user research, create high-fidelity '
-            'prototypes, and maintain the design system. A strong portfolio with end-to-end '
-            'case studies is required.',
+        'description': 'Shape Razorpay\'s merchant and consumer products used by 8M+ businesses. '
+            'Conduct user research, create high-fidelity prototypes, and maintain the design system.',
         'providerNote': null,
-        'status': 'active',
-        'applicants': 8,
-        'viewCount': 64,
-        'deadline': deadline,
-        'postedAt': now,
-        'jobRefId': 'RPY-UX-2026',
-        'isHot': false,
-        'source': 'manual',
-        'externalUrl': null,
+        'status': 'active', 'applicants': 8, 'viewCount': 64,
+        'deadline': '2026-08-10', 'postedAt': now, 'jobRefId': 'RPY-UX-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 007 — CRED Android Engineer
+      {
+        'providerId': providerId, 'company': 'CRED', 'companyLogo': 'C',
+        'title': 'Android Engineer – Platform', 'department': 'Mobile Platform',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 3, 'maxExp': 7, 'salaryMin': 30, 'salaryMax': 45,
+        'skills': ['Kotlin', 'Android SDK', 'Jetpack Compose'],
+        'preferredSkills': ['GraphQL', 'Coroutines', 'Dagger'],
+        'tags': ['android', 'mobile', 'fintech'],
+        'description': 'Build CRED\'s Android platform powering 10M+ premium users. '
+            'Own the performance infrastructure, build reusable UI components, '
+            'and drive adoption of Jetpack Compose across the codebase.',
+        'providerNote': 'Strong Kotlin fundamentals and Compose experience are a must.',
+        'status': 'active', 'applicants': 19, 'viewCount': 138,
+        'deadline': '2026-08-25', 'postedAt': now, 'jobRefId': 'CRD-AND-2026',
+        'isHot': true, 'source': 'manual', 'externalUrl': null,
+      },
+      // 008 — Meesho Backend SDE-III
+      {
+        'providerId': providerId, 'company': 'Meesho', 'companyLogo': 'M',
+        'title': 'Backend SDE-III', 'department': 'Seller Platform',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 5, 'maxExp': 9, 'salaryMin': 35, 'salaryMax': 55,
+        'skills': ['Java', 'Spring Boot', 'MySQL', 'Kafka'],
+        'preferredSkills': ['Redis', 'Microservices', 'AWS'],
+        'tags': ['backend', 'java', 'ecommerce'],
+        'description': 'Drive seller-side scalability for Meesho\'s 1M+ seller base. '
+            'Design and build high-throughput backend services, own reliability SLOs, '
+            'and mentor junior engineers on the team.',
+        'providerNote': null,
+        'status': 'active', 'applicants': 34, 'viewCount': 210,
+        'deadline': '2026-09-05', 'postedAt': now, 'jobRefId': 'MSH-SDE3-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 009 — PhonePe ML Engineer
+      {
+        'providerId': providerId, 'company': 'PhonePe', 'companyLogo': 'P',
+        'title': 'ML Engineer – Fraud Detection', 'department': 'Risk',
+        'location': 'Bangalore', 'workMode': 'On-site',
+        'minExp': 3, 'maxExp': 7, 'salaryMin': 32, 'salaryMax': 50,
+        'skills': ['Python', 'TensorFlow', 'SQL', 'Feature Engineering'],
+        'preferredSkills': ['PySpark', 'Kafka', 'Kubernetes'],
+        'tags': ['ml', 'ai', 'fintech'],
+        'description': 'Build real-time fraud detection models for PhonePe\'s 500M+ '
+            'transaction platform. Own the full ML lifecycle: feature engineering, '
+            'model training, A/B testing, and production monitoring.',
+        'providerNote': 'Experience with streaming data (Kafka / Flink) is a strong differentiator.',
+        'status': 'active', 'applicants': 27, 'viewCount': 189,
+        'deadline': '2026-08-28', 'postedAt': now, 'jobRefId': 'PPE-MLE-2026',
+        'isHot': true, 'source': 'manual', 'externalUrl': null,
+      },
+      // 010 — Ola SDE-II iOS
+      {
+        'providerId': providerId, 'company': 'Ola', 'companyLogo': 'O',
+        'title': 'SDE-II iOS', 'department': 'Consumer App',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 2, 'maxExp': 5, 'salaryMin': 22, 'salaryMax': 35,
+        'skills': ['Swift', 'UIKit', 'Xcode'],
+        'preferredSkills': ['SwiftUI', 'Combine', 'Core Data'],
+        'tags': ['ios', 'mobile', 'consumer'],
+        'description': 'Build the Ola rider app used by 150M+ users across India and international markets. '
+            'Own ride booking, maps integration, and payments flows on iOS.',
+        'providerNote': null,
+        'status': 'active', 'applicants': 15, 'viewCount': 95,
+        'deadline': '2026-08-18', 'postedAt': now, 'jobRefId': 'OLA-IOS-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 011 — Zomato SRE
+      {
+        'providerId': providerId, 'company': 'Zomato', 'companyLogo': 'Z',
+        'title': 'Site Reliability Engineer', 'department': 'Infrastructure',
+        'location': 'Gurgaon', 'workMode': 'Hybrid',
+        'minExp': 4, 'maxExp': 8, 'salaryMin': 30, 'salaryMax': 48,
+        'skills': ['Kubernetes', 'Terraform', 'Go', 'Prometheus'],
+        'preferredSkills': ['Istio', 'Helm', 'ClickHouse'],
+        'tags': ['devops', 'sre', 'infra'],
+        'description': 'Keep Zomato\'s food delivery infrastructure running at 99.99% uptime '
+            'across 1000+ cities. Own on-call rotations, lead incident response, '
+            'and drive reliability improvements across microservices.',
+        'providerNote': null,
+        'status': 'active', 'applicants': 11, 'viewCount': 74,
+        'deadline': '2026-09-10', 'postedAt': now, 'jobRefId': 'ZMT-SRE-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 012 — Paytm Backend Lead
+      {
+        'providerId': providerId, 'company': 'Paytm', 'companyLogo': 'P',
+        'title': 'Backend Lead – Payments', 'department': 'Payments',
+        'location': 'Noida', 'workMode': 'Hybrid',
+        'minExp': 7, 'maxExp': 12, 'salaryMin': 45, 'salaryMax': 70,
+        'skills': ['Java', 'Go', 'Kafka', 'System Design'],
+        'preferredSkills': ['gRPC', 'Redis', 'PostgreSQL'],
+        'tags': ['backend', 'payments', 'lead'],
+        'description': 'Lead a team of 6 engineers building Paytm\'s core payment processing engine '
+            'handling 1B+ transactions per month. Define architecture, own reliability, '
+            'and mentor senior engineers.',
+        'providerNote': 'Leadership and system design depth are key hiring criteria.',
+        'status': 'active', 'applicants': 7, 'viewCount': 58,
+        'deadline': '2026-09-15', 'postedAt': now, 'jobRefId': 'PTM-BL-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 013 — Nykaa Frontend SDE-II
+      {
+        'providerId': providerId, 'company': 'Nykaa', 'companyLogo': 'N',
+        'title': 'Frontend SDE-II', 'department': 'Beauty Commerce',
+        'location': 'Mumbai', 'workMode': 'On-site',
+        'minExp': 2, 'maxExp': 5, 'salaryMin': 18, 'salaryMax': 28,
+        'skills': ['React', 'Next.js', 'TypeScript'],
+        'preferredSkills': ['Storybook', 'Performance Optimization', 'A/B Testing'],
+        'tags': ['frontend', 'react', 'ecommerce'],
+        'description': 'Build Nykaa\'s beauty e-commerce web experience reaching 7M+ active users. '
+            'Own product listing pages, checkout flow, and personalisation widgets.',
+        'providerNote': null,
+        'status': 'active', 'applicants': 22, 'viewCount': 143,
+        'deadline': '2026-08-22', 'postedAt': now, 'jobRefId': 'NYK-FE-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 014 — BrowserStack QA Engineer
+      {
+        'providerId': providerId, 'company': 'BrowserStack', 'companyLogo': 'B',
+        'title': 'Senior QA Engineer', 'department': 'Platform QA',
+        'location': 'Mumbai', 'workMode': 'Remote',
+        'minExp': 3, 'maxExp': 6, 'salaryMin': 20, 'salaryMax': 32,
+        'skills': ['Selenium', 'Cypress', 'JavaScript'],
+        'preferredSkills': ['Playwright', 'Appium', 'CI/CD'],
+        'tags': ['qa', 'testing', 'remote'],
+        'description': 'Ensure quality for BrowserStack\'s testing infrastructure used by '
+            '50,000+ businesses. Build and maintain end-to-end test suites, '
+            'drive shift-left testing culture, and own the CI quality gates.',
+        'providerNote': null,
+        'status': 'active', 'applicants': 9, 'viewCount': 67,
+        'deadline': '2026-08-30', 'postedAt': now, 'jobRefId': 'BSK-QA-2026',
+        'isHot': false, 'source': 'manual', 'externalUrl': null,
+      },
+      // 015 — Dunzo Technical PM
+      {
+        'providerId': providerId, 'company': 'Dunzo', 'companyLogo': 'D',
+        'title': 'Technical Product Manager', 'department': 'Platform',
+        'location': 'Bangalore', 'workMode': 'Hybrid',
+        'minExp': 4, 'maxExp': 8, 'salaryMin': 28, 'salaryMax': 42,
+        'skills': ['Product Management', 'SQL', 'API Design'],
+        'preferredSkills': ['Figma', 'Agile', 'Python'],
+        'tags': ['product', 'technical', 'quickcommerce'],
+        'description': 'Define and ship the platform product roadmap for Dunzo\'s dark-store '
+            'and delivery orchestration systems. Bridge business and engineering, '
+            'write detailed specs, and drive execution with engineering teams.',
+        'providerNote': 'Engineering background preferred — you\'ll be reviewing PRDs with CTOs.',
+        'status': 'active', 'applicants': 14, 'viewCount': 102,
+        'deadline': '2026-09-08', 'postedAt': now, 'jobRefId': 'DZO-TPM-2026',
+        'isHot': true, 'source': 'manual', 'externalUrl': null,
       },
     ];
   }
 
-  static List<Map<String, dynamic>> _buildApplications(
-      String seekerId, Timestamp now) {
-    final fiveDaysAgo = Timestamp.fromDate(
-      DateTime.now().subtract(const Duration(days: 5)),
-    );
-    final threeDaysAgo = Timestamp.fromDate(
-      DateTime.now().subtract(const Duration(days: 3)),
-    );
-    final oneDayAgo = Timestamp.fromDate(
-      DateTime.now().subtract(const Duration(days: 1)),
-    );
-
+  // ── Applications ─────────────────────────────────────────────────────────
+  static List<Map<String, dynamic>> _buildApplications(String seekerId, Timestamp now) {
+    final d = (int days) => Timestamp.fromDate(DateTime.now().subtract(Duration(days: days)));
     return [
+      // 001 — Google Flutter — underReview (strong match)
       {
-        // Google Flutter — underReview (provider has seen it)
-        'jobId': _jobIds[0],
-        'seekerId': seekerId,
-        'providerId': _providerIds[0],
-        'status': 'underReview',
-        'matchScore': 87,
+        'jobId': _jobIds[0], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'underReview', 'matchScore': 87,
         'matchReport': {
-          'score': 87,
-          'band': 'excellentMatch',
-          'bandLabel': 'Excellent Match',
-          'recommendation':
-              'Kiran is an excellent fit for this role. '
-              'Flutter, Dart, and Firebase are all strong matches. '
-              'The 4-year experience threshold is met with room to grow.',
+          'score': 87, 'band': 'excellentMatch', 'bandLabel': 'Excellent Match',
+          'recommendation': 'Kiran is an excellent fit. Flutter, Dart, and Firebase are strong matches. '
+              '5 years experience meets the 4-year threshold.',
           'matchedSkills': ['Flutter', 'Dart', 'Firebase'],
           'missingSkills': ['Go', 'gRPC'],
-          'strengths': [
-              'All three required skills matched',
-              'Location match — Bangalore',
-              'Experience within required range',
-            ],
-          'gaps': ['Go / gRPC preferred but not required'],
-          'skillScore': 90,
-          'experienceScore': 85,
-          'locationScore': 100,
-          'contextScore': 80,
+          'strengths': ['All 3 required skills matched', 'Bangalore location match', 'Experience in range'],
+          'gaps': ['Go/gRPC preferred but not required'],
+          'skillScore': 90, 'experienceScore': 85, 'locationScore': 100, 'contextScore': 80,
           'computedAt': now,
         },
-        'appliedAt': threeDaysAgo,
-        'updatedAt': oneDayAgo,
-        'viewedAt': oneDayAgo,
-        'providerNote': 'Profile looks strong. Will review CV and follow up.',
+        'appliedAt': d(3), 'updatedAt': d(1), 'viewedAt': d(1),
+        'providerNote': 'Profile looks strong. Will review CV and follow up this week.',
         'strongMatchFlag': true,
       },
+      // 002 — Swiggy PM — underReview
       {
-        // Swiggy PM — underReview (viewed by provider)
-        'jobId': _jobIds[1],
-        'seekerId': seekerId,
-        'providerId': _providerIds[2],
-        'status': 'underReview',
-        'matchScore': 79,
+        'jobId': _jobIds[1], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'underReview', 'matchScore': 79,
         'matchReport': {
-          'score': 79,
-          'band': 'goodToGo',
-          'bandLabel': 'Good to Go',
-          'recommendation':
-              'Kiran\'s product management and Figma skills are directly relevant. '
-              'Lacking dedicated analytics tooling experience, but core PM skills '
-              'are solid.',
+          'score': 79, 'band': 'goodToGo', 'bandLabel': 'Good to Go',
+          'recommendation': 'Product Management and Figma are direct matches. '
+              'Analytics experience is partial — transferable from Firebase usage.',
           'matchedSkills': ['Product Management', 'Figma'],
-          'missingSkills': ['Analytics', 'SQL'],
-          'strengths': [
-              'Product Management and Figma are direct matches',
-              'Location matches Bangalore HQ',
-            ],
-          'gaps': [
-              'Analytics and SQL listed as required — partial match only',
-            ],
-          'skillScore': 75,
-          'experienceScore': 80,
-          'locationScore': 100,
-          'contextScore': 70,
+          'missingSkills': ['SQL', 'A/B Testing'],
+          'strengths': ['PM and Figma are direct matches', 'Bangalore location'],
+          'gaps': ['SQL listed as required — not in profile'],
+          'skillScore': 75, 'experienceScore': 80, 'locationScore': 100, 'contextScore': 70,
           'computedAt': now,
         },
-        'appliedAt': fiveDaysAgo,
-        'updatedAt': threeDaysAgo,
-        'viewedAt': threeDaysAgo,
-        'providerNote': null,
-        'strongMatchFlag': false,
+        'appliedAt': d(5), 'updatedAt': d(3), 'viewedAt': d(3),
+        'providerNote': null, 'strongMatchFlag': false,
       },
+      // 003 — Zepto Growth — pending
       {
-        // Zepto Growth — pending (just applied, 5 days ago)
-        'jobId': _jobIds[4],
-        'seekerId': seekerId,
-        'providerId': _providerIds[0],
-        'status': 'pending',
-        'matchScore': 62,
+        'jobId': _jobIds[4], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'pending', 'matchScore': 62,
         'matchReport': {
-          'score': 62,
-          'band': 'needsReview',
-          'bandLabel': 'Needs Review',
-          'recommendation':
-              'Some transferable skills present but Growth and Analytics are '
-              'not primary skills on Kiran\'s profile. Worth applying given '
-              'the PM background.',
+          'score': 62, 'band': 'needsReview', 'bandLabel': 'Needs Review',
+          'recommendation': 'Transferable PM skills present. Growth marketing and SQL not in profile.',
           'matchedSkills': ['Analytics'],
           'missingSkills': ['Growth', 'SQL'],
-          'strengths': ['Product mindset transferable to growth roles'],
-          'gaps': ['Growth marketing and SQL are required — not in profile'],
-          'skillScore': 55,
-          'experienceScore': 70,
-          'locationScore': 60,
-          'contextScore': 65,
+          'strengths': ['Product mindset transferable to growth'],
+          'gaps': ['Growth marketing and SQL required — not in profile'],
+          'skillScore': 55, 'experienceScore': 70, 'locationScore': 60, 'contextScore': 65,
           'computedAt': now,
         },
-        'appliedAt': fiveDaysAgo,
-        'updatedAt': fiveDaysAgo,
-        'viewedAt': null,
-        'providerNote': null,
-        'strongMatchFlag': false,
+        'appliedAt': d(5), 'updatedAt': d(5), 'viewedAt': null,
+        'providerNote': null, 'strongMatchFlag': false,
       },
+      // 004 — Flipkart Data — hired
       {
-        // Flipkart Data Eng — hired
-        'jobId': _jobIds[3],
-        'seekerId': seekerId,
-        'providerId': _providerIds[1],
-        'status': 'hired',
-        'matchScore': 55,
+        'jobId': _jobIds[3], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'hired', 'matchScore': 55,
         'matchReport': {
-          'score': 55,
-          'band': 'needsReview',
-          'bandLabel': 'Needs Review',
-          'recommendation':
-              'Firebase experience overlaps with data engineering concepts, '
-              'but Python, Spark, and SQL are not core Kiran skills. '
-              'Considered based on referrer relationship.',
+          'score': 55, 'band': 'needsReview', 'bandLabel': 'Needs Review',
+          'recommendation': 'Firebase overlaps with data concepts. Python and Spark not core skills. '
+              'Referred based on strong cultural fit.',
           'matchedSkills': ['Firebase'],
           'missingSkills': ['Python', 'Spark', 'SQL'],
-          'strengths': ['Firebase familiarity helps with data pipeline concepts'],
-          'gaps': [
-              'Python required — not in profile',
-              'Spark and SQL are core requirements',
-            ],
-          'skillScore': 45,
-          'experienceScore': 65,
-          'locationScore': 100,
-          'contextScore': 60,
+          'strengths': ['Firebase familiarity'],
+          'gaps': ['Python, Spark, SQL all required'],
+          'skillScore': 45, 'experienceScore': 65, 'locationScore': 100, 'contextScore': 60,
           'computedAt': now,
         },
-        'appliedAt': Timestamp.fromDate(
-          DateTime.now().subtract(const Duration(days: 14)),
-        ),
-        'updatedAt': Timestamp.fromDate(
-          DateTime.now().subtract(const Duration(days: 2)),
-        ),
-        'viewedAt': Timestamp.fromDate(
-          DateTime.now().subtract(const Duration(days: 10)),
-        ),
-        'providerNote': 'Referred internally — strong cultural fit.',
+        'appliedAt': d(14), 'updatedAt': d(2), 'viewedAt': d(10),
+        'providerNote': 'Referred internally — strong cultural fit noted by HM.',
         'strongMatchFlag': false,
       },
+      // 005 — CRED Android — rejected
+      {
+        'jobId': _jobIds[6], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'rejected', 'matchScore': 38,
+        'matchReport': {
+          'score': 38, 'band': 'lowMatch', 'bandLabel': 'Low Match',
+          'recommendation': 'Kotlin/Android not in profile. Flutter experience is similar '
+              'but Android native and Kotlin are required.',
+          'matchedSkills': [],
+          'missingSkills': ['Kotlin', 'Android SDK', 'Jetpack Compose'],
+          'strengths': ['Mobile development experience (Flutter)'],
+          'gaps': ['Native Android skills not demonstrated'],
+          'skillScore': 30, 'experienceScore': 60, 'locationScore': 100, 'contextScore': 40,
+          'computedAt': now,
+        },
+        'appliedAt': d(10), 'updatedAt': d(6), 'viewedAt': d(7),
+        'providerNote': 'Looking for native Android background. Flutter-only not sufficient.',
+        'strongMatchFlag': false,
+      },
+      // 006 — PhonePe ML — pending (just applied)
+      {
+        'jobId': _jobIds[8], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'pending', 'matchScore': 45,
+        'matchReport': {
+          'score': 45, 'band': 'needsReview', 'bandLabel': 'Needs Review',
+          'recommendation': 'Firebase gives some data familiarity. Python and TensorFlow '
+              'not in profile. Worth a shot given referral pathway.',
+          'matchedSkills': [],
+          'missingSkills': ['TensorFlow', 'PySpark', 'Feature Engineering'],
+          'strengths': ['Firebase familiarity with data streams'],
+          'gaps': ['ML-specific skills not demonstrated'],
+          'skillScore': 35, 'experienceScore': 60, 'locationScore': 100, 'contextScore': 50,
+          'computedAt': now,
+        },
+        'appliedAt': d(1), 'updatedAt': d(1), 'viewedAt': null,
+        'providerNote': null, 'strongMatchFlag': false,
+      },
+      // 007 — Razorpay UX — underReview (Figma match)
+      {
+        'jobId': _jobIds[5], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'underReview', 'matchScore': 72,
+        'matchReport': {
+          'score': 72, 'band': 'goodToGo', 'bandLabel': 'Good to Go',
+          'recommendation': 'Figma is a direct match. UX Research not in profile but '
+              'PM experience provides user empathy. Portfolio quality will be key.',
+          'matchedSkills': ['Figma'],
+          'missingSkills': ['UX Research', 'Prototyping'],
+          'strengths': ['Figma proficiency confirmed', 'Product sense from PM background'],
+          'gaps': ['Formal UX Research not demonstrated'],
+          'skillScore': 65, 'experienceScore': 75, 'locationScore': 100, 'contextScore': 70,
+          'computedAt': now,
+        },
+        'appliedAt': d(7), 'updatedAt': d(4), 'viewedAt': d(5),
+        'providerNote': 'Interesting crossover profile. Requesting portfolio link.',
+        'strongMatchFlag': false,
+      },
+      // 008 — Dunzo TPM — pending (applied today)
+      {
+        'jobId': _jobIds[14], 'seekerId': seekerId, 'providerId': seekerId,
+        'status': 'pending', 'matchScore': 83,
+        'matchReport': {
+          'score': 83, 'band': 'excellentMatch', 'bandLabel': 'Excellent Match',
+          'recommendation': 'Product Management is a direct match. Engineering background '
+              'with Flutter gives the technical credibility this TPM role requires.',
+          'matchedSkills': ['Product Management', 'Figma'],
+          'missingSkills': ['SQL', 'API Design'],
+          'strengths': ['PM background direct match', 'Technical engineering credibility'],
+          'gaps': ['SQL and API Design preferred'],
+          'skillScore': 82, 'experienceScore': 85, 'locationScore': 100, 'contextScore': 80,
+          'computedAt': now,
+        },
+        'appliedAt': now, 'updatedAt': now, 'viewedAt': null,
+        'providerNote': null, 'strongMatchFlag': true,
+      },
     ];
   }
 
-  static List<Map<String, dynamic>> _buildGratitudes(
-      String fromSeekerId, Timestamp now) {
+  // ── Messages ─────────────────────────────────────────────────────────────
+  // NOTE: Firestore rule requires create.fromId == auth.uid, so we can only
+  // write messages sent BY the current user. "Received" messages are skipped.
+  static List<Map<String, dynamic>> _buildMessages(String uid, Timestamp now) {
+    const otherA = 'seed_referrer_arjun';
+    const otherB = 'seed_referrer_priya';
+    final d = (int mins) => Timestamp.fromDate(
+        DateTime.now().subtract(Duration(minutes: mins)));
+
+    return [
+      // Conversation A — messages sent by user TO Arjun (Google referral)
+      {
+        'fromId': uid, 'toId': otherA,
+        'text': 'Hi Arjun! I applied for the Senior Flutter Developer role at Google. '
+            "Would really appreciate a referral if you think I'm a good fit.",
+        'sentAt': d(120), 'read': true,
+      },
+      {
+        'fromId': uid, 'toId': otherA,
+        'text': "That's amazing, thank you so much! I'll keep you posted on the interview progress.",
+        'sentAt': d(85), 'read': true,
+      },
+      {
+        'fromId': uid, 'toId': otherA,
+        "text": "Got it. I'll prep my open-source contributions as well. Thanks again!",
+        'sentAt': d(75), 'read': false,
+      },
+      // Conversation B — messages sent by user TO Priya (Swiggy PM)
+      {
+        'fromId': uid, 'toId': otherB,
+        "text": "Hi Priya, I saw your Swiggy PM role — I've applied. Would love to hear your thoughts on the team culture.",
+        'sentAt': d(48 * 60), 'read': true,
+      },
+      {
+        'fromId': uid, 'toId': otherB,
+        "text": "Yes — I've run experiments on onboarding flows with 200K+ users in my current role. Happy to share details.",
+        'sentAt': d(46 * 60), 'read': true,
+      },
+      {
+        'fromId': uid, 'toId': otherB,
+        "text": "Perfect. Really appreciate the support, Priya!",
+        'sentAt': d(44 * 60), 'read': false,
+      },
+      // Conversation C — user reaching out about Dunzo TPM
+      {
+        'fromId': uid, 'toId': 'seed_referrer_rahul',
+        "text": "Hi Rahul! Noticed you work at Dunzo. I applied for the Technical PM role — would really value your insights on the hiring process.",
+        'sentAt': d(30), 'read': false,
+      },
+      {
+        'fromId': uid, 'toId': 'seed_referrer_nisha',
+        "text": "Hi Nisha! I see you're at PhonePe. I applied for the ML Engineer role and wondering if you could share a referral. My profile: strong Flutter + Firebase background.",
+        'sentAt': d(10), 'read': false,
+      },
+    ];
+  }
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  static List<Map<String, dynamic>> _buildNotifications(String uid, Timestamp now) {
+    final d = (int hours) => Timestamp.fromDate(
+        DateTime.now().subtract(Duration(hours: hours)));
     return [
       {
-        'fromSeekerId': fromSeekerId,
-        'fromSeekerName': 'Kiran Narla',
-        'toReferrerId': _providerIds[0],
-        'message':
-            'Thank you so much, Arjun! Your referral to Google was a game-changer. '
-            'I got the interview and the process has been amazing so far.',
-        'createdAt': now,
+        'userId': uid,
+        'title': 'Application viewed!',
+        'body': 'Arjun Mehta from Google viewed your application for Senior Flutter Developer.',
+        'type': 'applicationViewed',
+        'referenceId': _appIds[0],
+        'read': false,
+        'createdAt': d(2),
       },
       {
-        'fromSeekerId': fromSeekerId,
-        'fromSeekerName': 'Kiran Narla',
-        'toReferrerId': _providerIds[1],
-        'message':
-            'Priya, I really appreciate you taking the time to forward my profile at Flipkart. '
-            'The hiring team was super responsive. Thank you!',
-        'createdAt': Timestamp.fromDate(
-          DateTime.now().subtract(const Duration(days: 3)),
-        ),
+        'userId': uid,
+        'title': 'Referral confirmed 🎉',
+        'body': 'Priya Sharma confirmed your referral for the Swiggy PM role. '
+            'Expect a recruiter call within 3 days.',
+        'type': 'referralConfirmed',
+        'referenceId': _appIds[1],
+        'read': false,
+        'createdAt': d(5),
       },
       {
-        'fromSeekerId': fromSeekerId,
-        'fromSeekerName': 'Kiran Narla',
-        'toReferrerId': _providerIds[2],
-        'message':
-            'Rohan, your note to the Swiggy hiring manager opened doors I did not expect. '
-            'Genuinely grateful for your support!',
-        'createdAt': Timestamp.fromDate(
-          DateTime.now().subtract(const Duration(days: 7)),
-        ),
+        'userId': uid,
+        'title': 'Congrats — Hired! 🥳',
+        'body': 'You were marked as hired for the Flipkart Data Engineer role. '
+            'What a journey!',
+        'type': 'hired',
+        'referenceId': _appIds[3],
+        'read': true,
+        'createdAt': d(48),
+      },
+      {
+        'userId': uid,
+        'title': 'New job match',
+        'body': 'A new Senior Flutter Developer role at Dunzo matches 83% of your profile.',
+        'type': 'jobMatch',
+        'referenceId': _jobIds[14],
+        'read': true,
+        'createdAt': d(72),
+      },
+      {
+        'userId': uid,
+        'title': 'Application update',
+        'body': 'Razorpay has reviewed your application for Senior UX Designer '
+            'and is requesting your portfolio.',
+        'type': 'applicationUpdate',
+        'referenceId': _appIds[6],
+        'read': true,
+        'createdAt': d(96),
       },
     ];
   }
-
-  static List<Map<String, dynamic>> _buildLeaderboard(Timestamp now) => [
-    {
-      'rank': 1,
-      'userId': _providerIds[0],
-      'name': 'Arjun Mehta',
-      'company': 'Google',
-      'title': 'Engineering Manager',
-      'referralsMade': 10,
-      'successfulReferrals': 7,
-      'successRate': 70,
-      'trustScore': 88.0,
-      'period': 'allTime',
-      'updatedAt': now,
-    },
-    {
-      'rank': 2,
-      'userId': _providerIds[1],
-      'name': 'Priya Sharma',
-      'company': 'Flipkart',
-      'title': 'Senior Product Manager',
-      'referralsMade': 8,
-      'successfulReferrals': 5,
-      'successRate': 62,
-      'trustScore': 82.0,
-      'period': 'allTime',
-      'updatedAt': now,
-    },
-    {
-      'rank': 3,
-      'userId': _providerIds[2],
-      'name': 'Rohan Verma',
-      'company': 'Swiggy',
-      'title': 'Staff Engineer',
-      'referralsMade': 6,
-      'successfulReferrals': 4,
-      'successRate': 66,
-      'trustScore': 74.0,
-      'period': 'allTime',
-      'updatedAt': now,
-    },
-    {
-      'rank': 4,
-      'userId': _providerIds[3],
-      'name': 'Nisha Kapoor',
-      'company': 'Amazon',
-      'title': 'Data Engineering Lead',
-      'referralsMade': 4,
-      'successfulReferrals': 2,
-      'successRate': 50,
-      'trustScore': 55.0,
-      'period': 'allTime',
-      'updatedAt': now,
-    },
-    {
-      'rank': 5,
-      'userId': _providerIds[4],
-      'name': 'Vikram Singh',
-      'company': 'Razorpay',
-      'title': 'UX Design Lead',
-      'referralsMade': 2,
-      'successfulReferrals': 1,
-      'successRate': 50,
-      'trustScore': 42.0,
-      'period': 'allTime',
-      'updatedAt': now,
-    },
-  ];
 }

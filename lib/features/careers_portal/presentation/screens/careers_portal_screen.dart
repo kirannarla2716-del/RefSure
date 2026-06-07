@@ -107,7 +107,7 @@ class _CareersPortalScreenState extends State<CareersPortalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: Colors.white,
                 ),
               ),
               if (_resolvedCompany != null)
@@ -115,7 +115,7 @@ class _CareersPortalScreenState extends State<CareersPortalScreen> {
                   _resolvedCompany!,
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: AppColors.textHint,
+                    color: Colors.white70,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

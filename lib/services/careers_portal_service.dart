@@ -59,7 +59,7 @@ class CareersPortalService {
   /// Throws a [CareersPortalException] if no source returns results.
   Future<CareersPortalResult> fetchJobs(
     String companyName, {
-    bool filterLast30Days = true,
+    bool filterLast30Days = false,
   }) async {
     final slugs = _buildSlugs(companyName);
 
@@ -129,9 +129,14 @@ class CareersPortalService {
     // First word only  e.g. "goldman"
     final first = cleaned.split(RegExp(r'\s+')).first;
 
+    // Additional slug variants
+    final words = cleaned.split(RegExp(r'\s+'));
+    final underscore = words.join('_');                          // e.g. "goldman_sachs"
+    final firstTwo  = words.length >= 2 ? words.take(2).join('-') : '';  // e.g. "goldman-sachs" (already in hyphen for 2 words, but useful for 3+)
+
     // Deduplicate while preserving insertion order
     final seen = <String>{};
-    return [hyphen, noSep, first]
+    return [hyphen, noSep, underscore, firstTwo, first]
         .where((s) => s.isNotEmpty && seen.add(s))
         .toList();
   }

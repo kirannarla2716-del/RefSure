@@ -7,6 +7,7 @@ import 'package:refsure/core/models/job.dart';
 import 'package:refsure/features/jobs/data/jobs_repository.dart';
 import 'package:refsure/services/careers_portal_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:refsure/core/constants/app_constants.dart';
 
 class CareersPortalRepository {
   CareersPortalRepository(this._service, this._jobsRepository);
@@ -17,7 +18,7 @@ class CareersPortalRepository {
   /// Fetches open jobs for [companyName] from the best-matching ATS.
   Future<CareersPortalResult> fetchJobs(
     String companyName, {
-    bool filterLast30Days = true,
+    bool filterLast30Days = false,
   }) =>
       _service.fetchJobs(companyName, filterLast30Days: filterLast30Days);
 
@@ -25,6 +26,15 @@ class CareersPortalRepository {
   ///
   /// [providerId] is the uid of the referrer/provider performing the import.
   Future<String?> importJob(ExternalJob ext, String providerId) {
+    final cleanedDescription = _stripHtml(ext.description ?? '');
+    final extractedSkills    = _extractSkills(cleanedDescription);
+    final deadline = DateTime.now().add(const Duration(days: 30));
+    final deadlineStr = [
+      deadline.year.toString(),
+      deadline.month.toString().padLeft(2, '0'),
+      deadline.day.toString().padLeft(2, '0'),
+    ].join('-');
+
     final job = Job(
       id: '',
       providerId: providerId,
@@ -38,15 +48,23 @@ class CareersPortalRepository {
       workMode: ext.workMode ?? 'Hybrid',
       minExp: 0,
       maxExp: 10,
-      skills: const [],
-      description: _stripHtml(ext.description ?? ''),
-      deadline: '',
+      skills: extractedSkills,
+      description: cleanedDescription,
+      deadline: deadlineStr,
       postedAt: ext.postedAt,
       jobRefId: const Uuid().v4().substring(0, 8).toUpperCase(),
       source: JobSource.careersPortal,
       externalUrl: ext.applyUrl,
     );
     return _jobsRepository.postJob(job);
+  }
+
+  /// Extracts known skill keywords from free-text job description.
+  static List<String> _extractSkills(String text) {
+    final lower = text.toLowerCase();
+    return AppConstants.skillOptions
+        .where((skill) => lower.contains(skill.toLowerCase()))
+        .toList();
   }
 
   /// Very lightweight HTML-to-text strip for job descriptions fetched

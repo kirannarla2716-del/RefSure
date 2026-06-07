@@ -26,12 +26,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAAuiJsA9sVMb76hC4a2CtMYYlTDwkSGBk',
-    appId: '1:179190872224:web:a93092dbb2a861d68031c5',
-    messagingSenderId: '179190872224',
-    projectId: 'refsure-28a67',
-    authDomain: 'refsure-28a67.firebaseapp.com',
-    storageBucket: 'refsure-28a67.firebasestorage.app',
+    apiKey: 'AIzaSyCJwmIPCp93FNk_TmQjmC-T7OJxDGnCd7Q',
+    appId: '1:1085369749507:web:e607ca3dcc14665e46fe36',
+    messagingSenderId: '1085369749507',
+    projectId: 'refsure-d6e3a',
+    authDomain: 'refsure-d6e3a.firebaseapp.com',
+    storageBucket: 'refsure-d6e3a.firebasestorage.app',
+    measurementId: 'G-9RC499ECVR',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

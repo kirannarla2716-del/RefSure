@@ -1,7 +1,9 @@
 class AppConstants {
   AppConstants._();
 
-  static const int otpExpiryMinutes = 10;
+  static const int    otpExpiryMinutes = 10;
+  static const String supportEmail     = 'support@refsure.app';
+  static const String supportPhone     = '+1 (800) 555-0100';
   static const int minMatchScoreToApply = 40;
   static const int strongMatchThreshold = 80;
 

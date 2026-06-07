@@ -45,7 +45,8 @@ class _AuthScreenState extends State<AuthScreen>
   Widget build(BuildContext context) => BlocListener<AuthBloc, AuthState>(
     listener: (context, state) {
       if (state is AuthSuccess) {
-        context.go(_isSignUp ? '/onboarding' : '/');
+        // Go home always; onboarding screen self-redirects if profile exists
+        context.go('/');
       }
     },
     child: Scaffold(

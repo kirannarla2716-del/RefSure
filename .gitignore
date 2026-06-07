@@ -31,3 +31,9 @@ android/local.properties
 *.ephemeral
 ios/Flutter/ephemeral/
 macos/Flutter/ephemeral/
+
+# Cowork session helpers
+rs_*.command
+_*.log
+_apps.json
+_webconfig.txt

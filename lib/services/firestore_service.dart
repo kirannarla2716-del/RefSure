@@ -41,41 +41,61 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-  /// Providers ordered by trust score + referrals
+  /// Providers ordered by trust score. Sorted client-side so no composite
+  /// (role + trustScore) index is required.
   Stream<List<AppUser>> watchProviders() =>
       _users.where('role', isEqualTo: 'provider')
-          .orderBy('trustScore', descending: true)
           .snapshots()
-          .map((s) => s.docs.map(AppUser.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(AppUser.fromFirestore).toList();
+            list.sort((a, b) => b.trustScore.compareTo(a.trustScore));
+            return list;
+          });
 
-  /// Seekers ordered by profile completeness
+  /// Seekers ordered by profile completeness. Sorted client-side so no
+  /// composite (role + profileComplete) index is required.
   Stream<List<AppUser>> watchSeekers() =>
       _users.where('role', isEqualTo: 'seeker')
-          .orderBy('profileComplete', descending: true)
           .snapshots()
-          .map((s) => s.docs.map(AppUser.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(AppUser.fromFirestore).toList();
+            list.sort((a, b) => b.profileComplete.compareTo(a.profileComplete));
+            return list;
+          });
 
   // ─────────────────── JOBS ───────────────────────────────
 
   Stream<List<Job>> watchActiveJobs() =>
       _jobs.where('status', isEqualTo: 'active')
-          .orderBy('postedAt', descending: true)
+          .limit(30)
           .snapshots()
-          .map((s) => s.docs.map(Job.fromFirestore).toList());
+          .map((s) {
+            final jobs = s.docs.map(Job.fromFirestore).toList();
+            jobs.sort((a, b) => b.postedAt.compareTo(a.postedAt));
+            return jobs;
+          });
 
   /// Hot jobs first, then recency
   Stream<List<Job>> watchHotJobs() =>
       _jobs.where('status', isEqualTo: 'active')
           .where('isHot', isEqualTo: true)
-          .orderBy('postedAt', descending: true)
+          .limit(10)
           .snapshots()
-          .map((s) => s.docs.map(Job.fromFirestore).toList());
+          .map((s) {
+            final jobs = s.docs.map(Job.fromFirestore).toList();
+            jobs.sort((a, b) => b.postedAt.compareTo(a.postedAt));
+            return jobs;
+          });
 
   Stream<List<Job>> watchProviderJobs(String providerId) =>
       _jobs.where('providerId', isEqualTo: providerId)
-          .orderBy('postedAt', descending: true)
+          .limit(50)
           .snapshots()
-          .map((s) => s.docs.map(Job.fromFirestore).toList());
+          .map((s) {
+            final jobs = s.docs.map(Job.fromFirestore).toList();
+            jobs.sort((a, b) => b.postedAt.compareTo(a.postedAt));
+            return jobs;
+          });
 
   Future<Job?> getJob(String jobId) async {
     final doc = await _jobs.doc(jobId).get();
@@ -109,21 +129,30 @@ class FirestoreService {
 
   Stream<List<Application>> watchSeekerApplications(String seekerId) =>
       _apps.where('seekerId', isEqualTo: seekerId)
-          .orderBy('appliedAt', descending: true)
           .snapshots()
-          .map((s) => s.docs.map(Application.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(Application.fromFirestore).toList();
+            list.sort((a, b) => b.appliedAt.compareTo(a.appliedAt));
+            return list;
+          });
 
   Stream<List<Application>> watchJobApplications(String jobId) =>
       _apps.where('jobId', isEqualTo: jobId)
-          .orderBy('matchScore', descending: true)
           .snapshots()
-          .map((s) => s.docs.map(Application.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(Application.fromFirestore).toList();
+            list.sort((a, b) => b.matchScore.compareTo(a.matchScore));
+            return list;
+          });
 
   Stream<List<Application>> watchProviderApplications(String providerId) =>
       _apps.where('providerId', isEqualTo: providerId)
-          .orderBy('matchScore', descending: true)
           .snapshots()
-          .map((s) => s.docs.map(Application.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(Application.fromFirestore).toList();
+            list.sort((a, b) => b.matchScore.compareTo(a.matchScore));
+            return list;
+          });
 
   Future<bool> hasApplied(String jobId, String seekerId) async {
     final snap = await _apps
@@ -173,9 +202,12 @@ class FirestoreService {
             Filter.and(Filter('fromId', isEqualTo: uid1), Filter('toId', isEqualTo: uid2)),
             Filter.and(Filter('fromId', isEqualTo: uid2), Filter('toId', isEqualTo: uid1)),
           ))
-          .orderBy('sentAt')
           .snapshots()
-          .map((s) => s.docs.map(Message.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(Message.fromFirestore).toList();
+            list.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+            return list;
+          });
 
   Future<void> sendMessage(Message msg) => _msgs.add(msg.toFirestore());
 
@@ -184,9 +216,12 @@ class FirestoreService {
   /// All gratitudes received by [referrerId], newest first.
   Stream<List<Gratitude>> watchGratitudesFor(String referrerId) =>
       _gratitudes.where('toReferrerId', isEqualTo: referrerId)
-          .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((s) => s.docs.map(Gratitude.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(Gratitude.fromFirestore).toList();
+            list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list;
+          });
 
   /// All gratitudes (used for the leaderboard view).
   Stream<List<Gratitude>> watchAllGratitudes() =>
@@ -220,10 +255,12 @@ class FirestoreService {
 
   Stream<List<AppNotification>> watchNotifications(String userId) =>
       _notifs.where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .limit(50)
           .snapshots()
-          .map((s) => s.docs.map(AppNotification.fromFirestore).toList());
+          .map((s) {
+            final list = s.docs.map(AppNotification.fromFirestore).toList();
+            list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list.length > 50 ? list.sublist(0, 50) : list;
+          });
 
   Future<void> createNotification(AppNotification n) =>
       _notifs.add(n.toFirestore());
@@ -242,56 +279,55 @@ class FirestoreService {
 
   // ─────────────────── SEED DATA ──────────────────────────
 
-  Future<void> seedSampleJobs() async {
+  Future<void> seedSampleJobs(String uid) async {
     final existing = await _jobs.limit(1).get();
     if (existing.docs.isNotEmpty) return;
     final batch = _db.batch();
-    for (final job in _sampleJobs) {
+    final sampleJobs = [
+      {
+        'providerId': uid, 'company': 'Google', 'companyLogo': 'G',
+        'title': 'Software Engineer III', 'department': 'Infrastructure',
+        'location': 'Bangalore', 'workMode': 'Hybrid', 'minExp': 3, 'maxExp': 7,
+        'salaryMin': 40, 'salaryMax': 80, 'status': 'active', 'applicants': 0, 'viewCount': 0,
+        'skills': ['Go', 'Python', 'Kubernetes', 'Distributed Systems'],
+        'preferredSkills': ['GCP', 'gRPC'], 'tags': ['backend', 'infra'],
+        'description': 'Join Google Infrastructure to build distributed systems at planetary scale. '
+            'You will design and build robust, scalable services used by billions of users. '
+            'Strong system design and distributed systems background is essential.',
+        'deadline': '2026-08-30', 'jobRefId': '', 'isHot': true,
+        'source': 'manual', 'externalUrl': null, 'providerNote': null,
+      },
+      {
+        'providerId': uid, 'company': 'Microsoft', 'companyLogo': 'M',
+        'title': 'Senior Product Manager', 'department': 'Azure',
+        'location': 'Hyderabad', 'workMode': 'Hybrid', 'minExp': 5, 'maxExp': 12,
+        'salaryMin': 35, 'salaryMax': 70, 'status': 'active', 'applicants': 0, 'viewCount': 0,
+        'skills': ['Product Strategy', 'SQL', 'Data Analysis', 'Azure'],
+        'preferredSkills': ['Enterprise Sales', 'Agile'], 'tags': ['product', 'cloud'],
+        'description': 'Drive product strategy for Azure enterprise offerings in India. '
+            'You will work with engineering and sales teams to define roadmap and GTM strategy. '
+            'Strong analytical skills and enterprise product experience required.',
+        'deadline': '2026-08-15', 'jobRefId': '', 'isHot': false,
+        'source': 'manual', 'externalUrl': null, 'providerNote': null,
+      },
+      {
+        'providerId': uid, 'company': 'Amazon', 'companyLogo': 'A',
+        'title': 'SDE-2', 'department': 'Prime', 'location': 'Bangalore',
+        'workMode': 'On-site', 'minExp': 2, 'maxExp': 6,
+        'salaryMin': 30, 'salaryMax': 55, 'status': 'active', 'applicants': 0, 'viewCount': 0,
+        'skills': ['Java', 'AWS', 'Spring Boot', 'System Design'],
+        'preferredSkills': ['Kafka', 'DynamoDB'], 'tags': ['java', 'aws', 'backend'],
+        'description': 'Build the Prime membership platform serving 300M+ customers. '
+            'You will own critical backend services with high availability requirements. '
+            'Experience with Java microservices and AWS is required.',
+        'deadline': '2026-08-30', 'jobRefId': '', 'isHot': true,
+        'source': 'manual', 'externalUrl': null, 'providerNote': null,
+      },
+    ];
+    for (final job in sampleJobs) {
       final ref = _jobs.doc();
       batch.set(ref, {...job, 'postedAt': FieldValue.serverTimestamp()});
     }
     await batch.commit();
   }
-
-  static const _sampleJobs = [
-    {
-      'providerId': 'seed', 'company': 'Google', 'companyLogo': 'G',
-      'title': 'Software Engineer III', 'department': 'Infrastructure',
-      'location': 'Bangalore', 'workMode': 'Hybrid', 'minExp': 3, 'maxExp': 7,
-      'salaryMin': 40, 'salaryMax': 80, 'status': 'active', 'applicants': 0, 'viewCount': 0,
-      'skills': ['Go', 'Python', 'Kubernetes', 'Distributed Systems'],
-      'preferredSkills': ['GCP', 'gRPC'], 'tags': ['backend', 'infra'],
-      'description': 'Join Google Infrastructure to build distributed systems at planetary scale. '
-          'You will design and build robust, scalable services used by billions of users. '
-          'Strong system design and distributed systems background is essential.',
-      'deadline': '2026-06-30', 'jobRefId': '', 'isHot': true,
-      'source': 'manual', 'externalUrl': null, 'providerNote': null,
-    },
-    {
-      'providerId': 'seed', 'company': 'Microsoft', 'companyLogo': 'M',
-      'title': 'Senior Product Manager', 'department': 'Azure',
-      'location': 'Hyderabad', 'workMode': 'Hybrid', 'minExp': 5, 'maxExp': 12,
-      'salaryMin': 35, 'salaryMax': 70, 'status': 'active', 'applicants': 0, 'viewCount': 0,
-      'skills': ['Product Strategy', 'SQL', 'Data Analysis', 'Azure'],
-      'preferredSkills': ['Enterprise Sales', 'Agile'], 'tags': ['product', 'cloud'],
-      'description': 'Drive product strategy for Azure enterprise offerings in India. '
-          'You will work with engineering and sales teams to define roadmap and GTM strategy. '
-          'Strong analytical skills and enterprise product experience required.',
-      'deadline': '2026-06-15', 'jobRefId': '', 'isHot': false,
-      'source': 'manual', 'externalUrl': null, 'providerNote': null,
-    },
-    {
-      'providerId': 'seed', 'company': 'Amazon', 'companyLogo': 'A',
-      'title': 'SDE-2', 'department': 'Prime', 'location': 'Bangalore',
-      'workMode': 'On-site', 'minExp': 2, 'maxExp': 6,
-      'salaryMin': 30, 'salaryMax': 55, 'status': 'active', 'applicants': 0, 'viewCount': 0,
-      'skills': ['Java', 'AWS', 'Spring Boot', 'System Design'],
-      'preferredSkills': ['Kafka', 'DynamoDB'], 'tags': ['java', 'aws', 'backend'],
-      'description': 'Build the Prime membership platform serving 300M+ customers. '
-          'You will own critical backend services with high availability requirements. '
-          'Experience with Java microservices and AWS is required.',
-      'deadline': '2026-05-30', 'jobRefId': '', 'isHot': true,
-      'source': 'manual', 'externalUrl': null, 'providerNote': null,
-    },
-  ];
 }

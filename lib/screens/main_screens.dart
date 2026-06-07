@@ -238,10 +238,22 @@ class _AppTourCardState extends State<_AppTourCard> {
   void initState() {
     super.initState();
     _checkSeen();
+    // Listen for in-session tour resets triggered from Profile screen
+    TourService.resetNotifier.addListener(_onTourReset);
+  }
+
+  void _onTourReset() {
+    _page = 0;
+    _pageCtrl.jumpToPage(0);
+    _checkSeen();
   }
 
   @override
-  void dispose() { _pageCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    TourService.resetNotifier.removeListener(_onTourReset);
+    _pageCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _checkSeen() async {
     final seen = await TourService.hasSeenTour();
@@ -271,20 +283,23 @@ class _AppTourCardState extends State<_AppTourCard> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('App Tour',
-            style: GoogleFonts.inter(
-              fontSize: 14, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          TextButton(
-            onPressed: _dismiss,
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(40, 30),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text('Skip',
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(6)),
+            child: Text('Quick Tour',
               style: GoogleFonts.inter(
-                fontSize: 12, fontWeight: FontWeight.w600))),
+                fontSize: 12, fontWeight: FontWeight.w700,
+                color: AppColors.primary))),
+          const Spacer(),
+          Text('${_page + 1}/${_slides.length}',
+            style: GoogleFonts.inter(
+              fontSize: 11, color: AppColors.textHint)),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _dismiss,
+            child: const Icon(Icons.close, size: 18, color: AppColors.textHint)),
         ]),
         const SizedBox(height: 10),
         SizedBox(
@@ -310,20 +325,45 @@ class _AppTourCardState extends State<_AppTourCard> {
               ),
             ),
         ]),
-        if (_page == _slides.length - 1) ...[
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
+        const SizedBox(height: 10),
+        Row(children: [
+          if (_page > 0)
+            TextButton.icon(
+              onPressed: () => _pageCtrl.previousPage(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut),
+              icon: const Icon(Icons.arrow_back_ios, size: 12),
+              label: const Text('Back'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(60, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: AppColors.textSecond))
+          else
+            const SizedBox(width: 60),
+          const Spacer(),
+          if (_page < _slides.length - 1)
+            FilledButton.icon(
+              onPressed: () => _pageCtrl.nextPage(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut),
+              label: const Text('Next'),
+              icon: const Icon(Icons.arrow_forward_ios, size: 12),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(90, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10))))
+          else
+            FilledButton(
               onPressed: _dismiss,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(100, 36),
+                minimumSize: const Size(90, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Got it')),
-          ),
-        ],
+                  borderRadius: BorderRadius.circular(10))),
+              child: const Text('Got it ✓')),
+        ]),
       ]),
     );
   }
@@ -390,34 +430,48 @@ class _SeekerDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SectionCard(
-    onTap: onTap,
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Text('Your referrals', style: GoogleFonts.inter(
-          fontSize: 15, fontWeight: FontWeight.w700)),
-        const Spacer(),
-        Text('Total ${metrics.total}', style: GoogleFonts.inter(
-          fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
-      ]),
+      GestureDetector(
+        onTap: onTap,
+        child: Row(children: [
+          Text('My Applications', style: GoogleFonts.inter(
+            fontSize: 15, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(20)),
+            child: Text('Total ${metrics.total}', style: GoogleFonts.inter(
+              fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary))),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+        ])),
       const SizedBox(height: 12),
       Row(children: [
-        Expanded(child: _MetricTile(
-          icon: Icons.pending_actions_outlined,
-          label: 'Pending',
-          value: metrics.pending,
-          color: AppColors.amber)),
+        Expanded(child: GestureDetector(
+          onTap: () => context.push('/applications'),
+          child: _MetricTile(
+            icon: Icons.pending_actions_outlined,
+            label: 'Pending',
+            value: metrics.pending,
+            color: AppColors.amber))),
         const SizedBox(width: 8),
-        Expanded(child: _MetricTile(
-          icon: Icons.trending_up,
-          label: 'Open',
-          value: metrics.open,
-          color: AppColors.primary)),
+        Expanded(child: GestureDetector(
+          onTap: () => context.push('/applications'),
+          child: _MetricTile(
+            icon: Icons.trending_up,
+            label: 'In Progress',
+            value: metrics.open,
+            color: AppColors.primary))),
         const SizedBox(width: 8),
-        Expanded(child: _MetricTile(
-          icon: Icons.task_alt,
-          label: 'Completed',
-          value: metrics.completed,
-          color: AppColors.emerald)),
+        Expanded(child: GestureDetector(
+          onTap: () => context.push('/applications'),
+          child: _MetricTile(
+            icon: Icons.task_alt,
+            label: 'Completed',
+            value: metrics.completed,
+            color: AppColors.emerald))),
       ]),
     ]),
   );
