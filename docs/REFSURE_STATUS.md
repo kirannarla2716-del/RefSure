@@ -150,6 +150,9 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
   `codex/refsure-latest-release` publication branch now includes the backend,
   CI, security tests, migrations, lockfiles, documentation, and application
   changes as one reviewable release candidate.
+- GitHub publication completed to `kirannarla2716-del/RefSure` on branch
+  `codex/refsure-latest-release`. Initial release commit: `c8d3410`. Draft PR:
+  `https://github.com/kirannarla2716-del/RefSure/pull/3`.
 - `git diff --check`: passed.
 
 The production decision remains **NO-GO**.
@@ -288,8 +291,11 @@ Current local demo:
 6. Update this file with changed facts, exact evidence, and date.
 7. Never infer production readiness from local/demo fallback behavior.
 
-## Worktree Warning
+## GitHub Publication
 
-The worktree contains extensive uncommitted readiness-cycle implementation.
-Do not reset or overwrite unrelated changes. Review diffs by task scope and
-commit intentionally only when requested.
+- Target repository: `kirannarla2716-del/RefSure`
+- Release branch: `codex/refsure-latest-release`
+- Draft pull request: `https://github.com/kirannarla2716-del/RefSure/pull/3`
+- The source release candidate is published for review. This does not change
+  the production NO-GO decision until Firebase deployment and live smoke-test
+  gates pass.
