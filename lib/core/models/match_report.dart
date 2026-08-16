@@ -66,6 +66,12 @@ class MatchReport {
     'computedAt': Timestamp.fromDate(computedAt),
   };
 
+  /// JSON-safe representation for callable APIs and local persistence.
+  Map<String, dynamic> toJson() => {
+    ...toMap(),
+    'computedAt': computedAt.toUtc().toIso8601String(),
+  };
+
   factory MatchReport.fromMap(Map<String, dynamic> d) {
     final score = d['score'] ?? 0;
     final band  = MatchBand.values.firstWhere(
@@ -82,7 +88,25 @@ class MatchReport {
       experienceScore: d['experienceScore'] ?? 0,
       locationScore: d['locationScore'] ?? 0,
       contextScore: d['contextScore'] ?? 0,
-      computedAt: (d['computedAt'] as Timestamp?)?.toDate(),
+      computedAt: _parseComputedAt(d['computedAt']),
     );
+  }
+
+  static DateTime? _parseComputedAt(Object? value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    if (value is Map) {
+      final seconds = value['_seconds'] ?? value['seconds'];
+      final nanoseconds = value['_nanoseconds'] ?? value['nanoseconds'] ?? 0;
+      if (seconds is num && nanoseconds is num) {
+        return DateTime.fromMicrosecondsSinceEpoch(
+          seconds.toInt() * Duration.microsecondsPerSecond +
+              nanoseconds.toInt() ~/ 1000,
+          isUtc: true,
+        );
+      }
+    }
+    return null;
   }
 }

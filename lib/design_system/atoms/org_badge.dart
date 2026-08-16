@@ -9,14 +9,19 @@ class OrgBadge extends StatelessWidget {
   const OrgBadge({super.key, this.company});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: AppColors.emeraldLight, borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.emerald.withOpacity(0.3))),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.domain_verification, size: 12, color: AppColors.emerald),
-      const SizedBox(width: 4),
-      Text('${company ?? "Org"} Verified', style: GoogleFonts.inter(
-        fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.emerald)),
-    ]));
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+          color: AppColors.emeraldLight,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.emerald.withOpacity(0.3))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.domain_verification,
+            size: 12, color: AppColors.emerald),
+        const SizedBox(width: 4),
+        Text('${company ?? "Org"} Verified',
+            style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.emerald)),
+      ]));
 }

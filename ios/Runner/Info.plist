@@ -41,34 +41,11 @@
 	<false/>
 
 	<!-- Required for Google Sign-In -->
-	<!-- ⚠️ Replace YOUR_REVERSED_CLIENT_ID with value from GoogleService-Info.plist -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>YOUR_REVERSED_CLIENT_ID</string>
-			</array>
-		</dict>
-	</array>
-
-	<!-- Required for image_picker — photo library & camera -->
+	<!-- Required for image_picker photo library and camera flows. -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>RefSure needs access to your photos to update your profile picture.</string>
+	<string>Select a profile photo to help people recognize you on RefSure.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>RefSure needs camera access to take your profile photo.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>RefSure saves photos to your library.</string>
-
-	<!-- Required for file_picker — document access -->
-	<key>NSDocumentsFolderUsageDescription</key>
-	<string>RefSure needs access to your documents to upload your CV.</string>
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
+	<string>Take a profile photo to help people recognize you on RefSure.</string>
 
 	<!-- Allow HTTP in development (remove for production) -->
 	<key>NSAppTransportSecurity</key>

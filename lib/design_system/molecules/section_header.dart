@@ -10,9 +10,14 @@ class SectionHeader extends StatelessWidget {
   const SectionHeader({super.key, required this.title, this.action});
   @override
   Widget build(BuildContext context) => Row(children: [
-    Text(title, style: GoogleFonts.inter(
-      fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-    const Spacer(),
-    if (action != null) action!,
-  ]);
+        Expanded(
+            child: Text(title,
+                style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis)),
+        if (action != null) ...[const SizedBox(width: 8), action!],
+      ]);
 }

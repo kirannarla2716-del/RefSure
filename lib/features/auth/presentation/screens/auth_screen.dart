@@ -9,6 +9,7 @@ import 'package:refsure/design_system/theme/app_colors.dart';
 import 'package:refsure/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:refsure/features/auth/presentation/bloc/auth_event.dart';
 import 'package:refsure/features/auth/presentation/bloc/auth_state.dart';
+import 'package:refsure/firebase_options.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -412,12 +413,14 @@ class _SignInFormState extends State<_SignInForm> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.primaryDark))
                   : const Text('Sign In')),
-            const SizedBox(height: 20),
-            _LightOrDivider(),
-            const SizedBox(height: 20),
-            _LightGoogleButton(onPressed: loading ? () {} : () {
-              context.read<AuthBloc>().add(const GoogleSignInRequested());
-            }),
+            if (DefaultFirebaseOptions.supportsGoogleSignIn) ...[
+              const SizedBox(height: 20),
+              _LightOrDivider(),
+              const SizedBox(height: 20),
+              _LightGoogleButton(onPressed: loading ? () {} : () {
+                context.read<AuthBloc>().add(const GoogleSignInRequested());
+              }),
+            ],
           ]),
         );
       },
@@ -534,13 +537,15 @@ class _SignUpFormState extends State<_SignUpForm> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.primaryDark))
                   : const Text('Create Account')),
-            const SizedBox(height: 20),
-            _LightOrDivider(),
-            const SizedBox(height: 20),
-            _LightGoogleButton(onPressed: loading ? () {} : () {
-              context.read<AuthBloc>().add(
-                const GoogleSignInRequested(role: _defaultRole));
-            }),
+            if (DefaultFirebaseOptions.supportsGoogleSignIn) ...[
+              const SizedBox(height: 20),
+              _LightOrDivider(),
+              const SizedBox(height: 20),
+              _LightGoogleButton(onPressed: loading ? () {} : () {
+                context.read<AuthBloc>().add(
+                  const GoogleSignInRequested(role: _defaultRole));
+              }),
+            ],
           ]),
         );
       },

@@ -4,6 +4,10 @@ enum OnboardingSource { manual, linkedin, cvUpload }
 
 enum AppStatus {
   pending,
+  accepted,
+  declined,
+  withdrawn,
+  expired,
   underReview,
   strongMatch,
   needsReview,
@@ -15,7 +19,13 @@ enum AppStatus {
   closed,
 }
 
-enum MatchBand { sureShotMatch, excellentMatch, goodToGo, needsReview, lowMatch }
+enum MatchBand {
+  sureShotMatch,
+  excellentMatch,
+  goodToGo,
+  needsReview,
+  lowMatch
+}
 
 enum ReferralBadgeTier { bronze, silver, gold, diamond, platinum }
 

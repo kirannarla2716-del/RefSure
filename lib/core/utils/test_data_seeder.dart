@@ -9,6 +9,31 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+
+/// Controls startup-only demo behavior.
+///
+/// Debug builds remain ready for local testing. A non-debug demo build must
+/// opt in explicitly with `--dart-define=REFSURE_DEMO_MODE=true`.
+class DemoModePolicy {
+  const DemoModePolicy._();
+
+  static const bool _explicitDemoMode = bool.fromEnvironment(
+    'REFSURE_DEMO_MODE',
+  );
+
+  static bool get isEnabled => evaluate(
+        isDebugBuild: kDebugMode,
+        explicitDemoMode: _explicitDemoMode,
+      );
+
+  @visibleForTesting
+  static bool evaluate({
+    required bool isDebugBuild,
+    required bool explicitDemoMode,
+  }) =>
+      isDebugBuild || explicitDemoMode;
+}
 
 class TestDataSeeder {
   TestDataSeeder._();
@@ -44,6 +69,16 @@ class TestDataSeeder {
     'seed_notif_001', 'seed_notif_002', 'seed_notif_003',
     'seed_notif_004', 'seed_notif_005',
   ];
+
+  /// Seeds the full QA dataset only when startup demo behavior is enabled.
+  static Future<bool> seedAutomatically(
+    FirebaseFirestore db, {
+    String? currentUserId,
+  }) async {
+    if (!DemoModePolicy.isEnabled) return false;
+    await seed(db, currentUserId: currentUserId);
+    return true;
+  }
 
   // ── Public entry point ───────────────────────────────────────────────────
   static Future<void> seed(FirebaseFirestore db, {String? currentUserId}) async {

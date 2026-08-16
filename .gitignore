@@ -1,6 +1,5 @@
-# Firebase credentials — NEVER commit
+# Firebase Android configuration is not registered yet.
 android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
 
 # Flutter generated
 build/
@@ -31,6 +30,9 @@ android/local.properties
 *.ephemeral
 ios/Flutter/ephemeral/
 macos/Flutter/ephemeral/
+**/node_modules/
+functions/lib/
+functions/.env.*
 
 # Cowork session helpers
 rs_*.command

@@ -17,6 +17,9 @@ class CareersPortalCubit extends Cubit<CareersPortalState> {
   /// Cached copy of the last successful load — restored after imports and
   /// used by [refresh] to re-fetch without re-supplying the company name.
   CareersPortalLoaded? _lastLoaded;
+  String? _requestedCompany;
+  bool _requestedFilterLast30Days = true;
+  int _fetchGeneration = 0;
 
   // ── Fetch ─────────────────────────────────────────────────────
 
@@ -30,14 +33,21 @@ class CareersPortalCubit extends Cubit<CareersPortalState> {
     bool filterLast30Days = true,
   }) async {
     final name = companyName.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty) {
+      reset();
+      return;
+    }
 
+    final generation = ++_fetchGeneration;
+    _requestedCompany = name;
+    _requestedFilterLast30Days = filterLast30Days;
     emit(CareersPortalLoading(name));
     try {
       final result = await _repository.fetchJobs(
         name,
         filterLast30Days: filterLast30Days,
       );
+      if (isClosed || generation != _fetchGeneration) return;
       final loaded = CareersPortalLoaded(
         jobs: result.jobs,
         platform: result.platform,
@@ -49,18 +59,35 @@ class CareersPortalCubit extends Cubit<CareersPortalState> {
       _lastLoaded = loaded;
       emit(loaded);
     } on CareersPortalException catch (e) {
-      emit(CareersPortalError(e.message));
+      if (!isClosed && generation == _fetchGeneration) {
+        emit(CareersPortalError(
+          e.message,
+          companyName: name,
+          filterLast30Days: filterLast30Days,
+          diagnostics: e.diagnostics,
+          officialCareersUrl: e.officialCareersUrl,
+        ));
+      }
     } catch (e) {
-      emit(CareersPortalError('Unexpected error: $e'));
+      if (!isClosed && generation == _fetchGeneration) {
+        emit(CareersPortalError(
+          'Could not load jobs for "$name". Please try again.',
+          companyName: name,
+          filterLast30Days: filterLast30Days,
+        ));
+      }
     }
   }
 
   /// Re-fetches using the company name from the last successful load.
   /// No-ops if there has been no successful load yet.
   Future<void> refresh() async {
-    final last = _lastLoaded;
-    if (last == null) return;
-    await fetchJobs(last.companyName, filterLast30Days: last.filterLast30Days);
+    final company = _requestedCompany;
+    if (company == null) return;
+    await fetchJobs(
+      company,
+      filterLast30Days: _requestedFilterLast30Days,
+    );
   }
 
   // ── Date filter ───────────────────────────────────────────────
@@ -75,9 +102,53 @@ class CareersPortalCubit extends Cubit<CareersPortalState> {
     );
   }
 
+  // ── Client-side filters (no re-fetch) ─────────────────────────
+
+  void setQuery(String value) {
+    final c = state;
+    if (c is! CareersPortalLoaded) return;
+    _emitFiltered(c.copyWith(query: value));
+  }
+
+  void setLocation(String? value) {
+    final c = state;
+    if (c is! CareersPortalLoaded) return;
+    _emitFiltered(c.copyWith(location: value));
+  }
+
+  void setDepartment(String? value) {
+    final c = state;
+    if (c is! CareersPortalLoaded) return;
+    _emitFiltered(c.copyWith(department: value));
+  }
+
+  void setWorkMode(String? value) {
+    final c = state;
+    if (c is! CareersPortalLoaded) return;
+    _emitFiltered(c.copyWith(workMode: value));
+  }
+
+  void clearFilters() {
+    final c = state;
+    if (c is! CareersPortalLoaded) return;
+    _emitFiltered(
+      c.copyWith(
+        query: '',
+        location: null,
+        department: null,
+        workMode: null,
+      ),
+    );
+  }
+
+  void _emitFiltered(CareersPortalLoaded loaded) {
+    _lastLoaded = loaded;
+    emit(loaded);
+  }
+
   // ── Import ────────────────────────────────────────────────────
 
-  /// Imports an [ExternalJob] into RefSure as a [Job] posting.
+  /// Imports an [ExternalJob] into RefSure as a job posting.
   Future<void> importJob(ExternalJob job, String providerId) async {
     emit(CareersPortalImporting(job.id));
     try {
@@ -113,5 +184,11 @@ class CareersPortalCubit extends Cubit<CareersPortalState> {
   }
 
   /// Resets to initial state (clears results).
-  void reset() => emit(const CareersPortalInitial());
+  void reset() {
+    _fetchGeneration++;
+    _lastLoaded = null;
+    _requestedCompany = null;
+    _requestedFilterLast30Days = true;
+    emit(const CareersPortalInitial());
+  }
 }

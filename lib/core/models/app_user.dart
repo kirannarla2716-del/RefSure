@@ -45,8 +45,15 @@ class AppUser {
   final int avgResponseHours;
   final double responseRate;
   final double trustScore;
+  final bool availableForReferrals;
+  final int weeklyReferralCapacity;
+  final int activeReferralRequests;
+
   /// Total "thank you" gratitudes received from seekers.
   final int gratitudesReceived;
+
+  /// Server-managed flag exposing the guarded administration workspace.
+  final bool adminAccess;
 
   AppUser({
     required this.id,
@@ -85,7 +92,11 @@ class AppUser {
     this.avgResponseHours = 48,
     this.responseRate = 1.0,
     this.trustScore = 0.0,
+    this.availableForReferrals = true,
+    this.weeklyReferralCapacity = 5,
+    this.activeReferralRequests = 0,
     this.gratitudesReceived = 0,
+    this.adminAccess = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   ReferralBadge? get badge => ReferralBadge.fromCount(referralsMade);
@@ -95,11 +106,11 @@ class AppUser {
   double get computedTrustScore {
     double s = 0;
     if (orgVerified) s += 30;
-    if (verified)    s += 20;
+    if (verified) s += 20;
     if (profileComplete >= 80) s += 15;
     if (responseRate >= 0.8) s += 10;
     // Referral volume (replaces success rate)
-    if (referralsMade >= 5)  s += 5;
+    if (referralsMade >= 5) s += 5;
     if (referralsMade >= 10) s += 5;
     if (referralsMade >= 20) s += 5;
     if (referralsMade >= 30) s += 5;
@@ -107,25 +118,31 @@ class AppUser {
   }
 
   Map<String, dynamic> toFirestore() => {
-    'id': id, 'role': role.name, 'name': name, 'headline': headline,
-    'company': company, 'verified': verified, 'orgVerified': orgVerified,
-    'title': title, 'location': location, 'experience': experience,
-    'skills': skills, 'preferredRoles': preferredRoles, 'bio': bio,
-    'photoUrl': photoUrl, 'email': email, 'orgEmail': orgEmail,
-    'linkedinUrl': linkedinUrl, 'resumeUrl': resumeUrl,
-    'createdAt': Timestamp.fromDate(createdAt),
-    'lastActiveAt': lastActiveAt != null ? Timestamp.fromDate(lastActiveAt!) : null,
-    'onboardingSource': onboardingSource.name,
-    'education': education, 'currentCompany': currentCompany,
-    'noticePeriod': noticePeriod, 'expectedSalary': expectedSalary,
-    'activelyLooking': activelyLooking, 'profileComplete': profileComplete,
-    'referralsReceived': referralsReceived, 'referralsMade': referralsMade,
-    'successfulReferrals': successfulReferrals, 'totalJobsPosted': totalJobsPosted,
-    'successRate': successRate, 'responseTime': responseTime,
-    'avgResponseHours': avgResponseHours, 'responseRate': responseRate,
-    'trustScore': computedTrustScore,
-    'gratitudesReceived': gratitudesReceived,
-  };
+        'id': id, 'role': role.name, 'name': name, 'headline': headline,
+        'company': company, 'verified': verified, 'orgVerified': orgVerified,
+        'title': title, 'location': location, 'experience': experience,
+        'skills': skills, 'preferredRoles': preferredRoles, 'bio': bio,
+        'photoUrl': photoUrl, 'email': email, 'orgEmail': orgEmail,
+        'linkedinUrl': linkedinUrl, 'resumeUrl': resumeUrl,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'lastActiveAt':
+            lastActiveAt != null ? Timestamp.fromDate(lastActiveAt!) : null,
+        'onboardingSource': onboardingSource.name,
+        'education': education, 'currentCompany': currentCompany,
+        'noticePeriod': noticePeriod, 'expectedSalary': expectedSalary,
+        'activelyLooking': activelyLooking, 'profileComplete': profileComplete,
+        'referralsReceived': referralsReceived, 'referralsMade': referralsMade,
+        'successfulReferrals': successfulReferrals,
+        'totalJobsPosted': totalJobsPosted,
+        'successRate': successRate, 'responseTime': responseTime,
+        'avgResponseHours': avgResponseHours, 'responseRate': responseRate,
+        // Trusted backend projections own reputation values.
+        'trustScore': 0,
+        'gratitudesReceived': gratitudesReceived,
+        'availableForReferrals': availableForReferrals,
+        'weeklyReferralCapacity': weeklyReferralCapacity,
+        'activeReferralRequests': activeReferralRequests,
+      };
 
   factory AppUser.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -151,8 +168,8 @@ class AppUser {
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       lastActiveAt: (d['lastActiveAt'] as Timestamp?)?.toDate(),
       onboardingSource: OnboardingSource.values.firstWhere(
-        (o) => o.name == (d['onboardingSource'] ?? 'manual'),
-        orElse: () => OnboardingSource.manual),
+          (o) => o.name == (d['onboardingSource'] ?? 'manual'),
+          orElse: () => OnboardingSource.manual),
       education: d['education'],
       currentCompany: d['currentCompany'],
       noticePeriod: d['noticePeriod'],
@@ -169,36 +186,83 @@ class AppUser {
       responseRate: (d['responseRate'] ?? 1.0).toDouble(),
       trustScore: (d['trustScore'] ?? 0.0).toDouble(),
       gratitudesReceived: d['gratitudesReceived'] ?? 0,
+      adminAccess: d['adminAccess'] == true,
+      availableForReferrals: d['availableForReferrals'] ?? true,
+      weeklyReferralCapacity:
+          (d['weeklyReferralCapacity'] as num? ?? 5).round(),
+      activeReferralRequests:
+          (d['activeReferralRequests'] as num? ?? 0).round(),
     );
   }
 
   AppUser copyWith({
     UserRole? role,
-    String? name, String? bio, String? headline, String? photoUrl,
-    bool? activelyLooking, int? profileComplete, List<String>? skills,
-    String? noticePeriod, String? expectedSalary, String? orgEmail,
-    bool? orgVerified, String? resumeUrl, String? linkedinUrl,
-    String? company, String? title, String? location, int? experience,
-    List<String>? preferredRoles, String? education,
-  }) => AppUser(
-    id: id, role: role ?? this.role, name: name ?? this.name,
-    headline: headline ?? this.headline,
-    company: company ?? this.company, verified: verified,
-    orgVerified: orgVerified ?? this.orgVerified, title: title ?? this.title,
-    location: location ?? this.location, experience: experience ?? this.experience,
-    skills: skills ?? this.skills, preferredRoles: preferredRoles ?? this.preferredRoles,
-    bio: bio ?? this.bio, photoUrl: photoUrl ?? this.photoUrl, email: email,
-    orgEmail: orgEmail ?? this.orgEmail, linkedinUrl: linkedinUrl ?? this.linkedinUrl,
-    resumeUrl: resumeUrl ?? this.resumeUrl, createdAt: createdAt,
-    lastActiveAt: DateTime.now(), onboardingSource: onboardingSource,
-    education: education ?? this.education, currentCompany: currentCompany,
-    noticePeriod: noticePeriod ?? this.noticePeriod,
-    expectedSalary: expectedSalary ?? this.expectedSalary,
-    activelyLooking: activelyLooking ?? this.activelyLooking,
-    profileComplete: profileComplete ?? this.profileComplete,
-    referralsReceived: referralsReceived, referralsMade: referralsMade,
-    successfulReferrals: successfulReferrals, totalJobsPosted: totalJobsPosted,
-    successRate: successRate, responseTime: responseTime,
-    avgResponseHours: avgResponseHours, responseRate: responseRate,
-  );
+    String? name,
+    String? bio,
+    String? headline,
+    String? photoUrl,
+    bool? activelyLooking,
+    int? profileComplete,
+    List<String>? skills,
+    String? noticePeriod,
+    String? expectedSalary,
+    String? orgEmail,
+    bool? orgVerified,
+    String? resumeUrl,
+    String? linkedinUrl,
+    String? company,
+    String? title,
+    String? location,
+    int? experience,
+    List<String>? preferredRoles,
+    String? education,
+    bool? adminAccess,
+    bool? availableForReferrals,
+    int? weeklyReferralCapacity,
+    int? activeReferralRequests,
+  }) =>
+      AppUser(
+        id: id,
+        role: role ?? this.role,
+        name: name ?? this.name,
+        headline: headline ?? this.headline,
+        company: company ?? this.company,
+        verified: verified,
+        orgVerified: orgVerified ?? this.orgVerified,
+        title: title ?? this.title,
+        location: location ?? this.location,
+        experience: experience ?? this.experience,
+        skills: skills ?? this.skills,
+        preferredRoles: preferredRoles ?? this.preferredRoles,
+        bio: bio ?? this.bio,
+        photoUrl: photoUrl ?? this.photoUrl,
+        email: email,
+        orgEmail: orgEmail ?? this.orgEmail,
+        linkedinUrl: linkedinUrl ?? this.linkedinUrl,
+        resumeUrl: resumeUrl ?? this.resumeUrl,
+        createdAt: createdAt,
+        lastActiveAt: DateTime.now(),
+        onboardingSource: onboardingSource,
+        education: education ?? this.education,
+        currentCompany: currentCompany,
+        noticePeriod: noticePeriod ?? this.noticePeriod,
+        expectedSalary: expectedSalary ?? this.expectedSalary,
+        activelyLooking: activelyLooking ?? this.activelyLooking,
+        profileComplete: profileComplete ?? this.profileComplete,
+        referralsReceived: referralsReceived,
+        referralsMade: referralsMade,
+        successfulReferrals: successfulReferrals,
+        totalJobsPosted: totalJobsPosted,
+        successRate: successRate,
+        responseTime: responseTime,
+        avgResponseHours: avgResponseHours,
+        responseRate: responseRate,
+        adminAccess: adminAccess ?? this.adminAccess,
+        availableForReferrals:
+            availableForReferrals ?? this.availableForReferrals,
+        weeklyReferralCapacity:
+            weeklyReferralCapacity ?? this.weeklyReferralCapacity,
+        activeReferralRequests:
+            activeReferralRequests ?? this.activeReferralRequests,
+      );
 }

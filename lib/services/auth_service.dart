@@ -14,6 +14,13 @@ class AuthService {
   User? get currentFirebaseUser => _auth.currentUser;
   String? get currentUid => _auth.currentUser?.uid;
 
+  Future<bool> hasAdminClaim() async {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    final token = await user.getIdTokenResult();
+    return token.claims?['admin'] == true;
+  }
+
   // ── Email / Password ───────────────────────────────────────
 
   Future<AuthResult> signUpWithEmail({
@@ -24,7 +31,7 @@ class AuthService {
   }) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
-        email: email, password: password);
+          email: email, password: password);
       await credential.user!.updateDisplayName(name);
 
       // Create user document in Firestore
@@ -32,8 +39,8 @@ class AuthService {
         id: credential.user!.uid,
         role: role,
         name: name,
-        headline: role == UserRole.provider
-            ? 'Referral Provider' : 'Job Seeker',
+        headline:
+            role == UserRole.provider ? 'Referral Provider' : 'Job Seeker',
         title: '',
         location: '',
         experience: 0,
@@ -42,7 +49,8 @@ class AuthService {
         email: email,
         profileComplete: 30,
       );
-      await _db.collection('users')
+      await _db
+          .collection('users')
           .doc(credential.user!.uid)
           .set(user.toFirestore());
 
@@ -58,7 +66,7 @@ class AuthService {
   }) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
-        email: email, password: password);
+          email: email, password: password);
       return AuthResult(success: true, uid: credential.user!.uid);
     } on FirebaseAuthException catch (e) {
       return AuthResult(success: false, error: _authError(e.code));
@@ -110,7 +118,8 @@ class AuthService {
           id: uid,
           role: role,
           name: displayName ?? 'User',
-          headline: role == UserRole.provider ? 'Referral Provider' : 'Job Seeker',
+          headline:
+              role == UserRole.provider ? 'Referral Provider' : 'Job Seeker',
           title: '',
           location: '',
           experience: 0,
@@ -155,7 +164,9 @@ class AuthService {
 
   Future<void> signOut() async {
     if (!kIsWeb) {
-      try { await GoogleSignIn().signOut(); } catch (_) {}
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
     }
     await _auth.signOut();
   }
@@ -164,14 +175,22 @@ class AuthService {
 
   String _authError(String code) {
     switch (code) {
-      case 'email-already-in-use':   return 'An account with this email already exists.';
-      case 'invalid-email':          return 'Please enter a valid email address.';
-      case 'weak-password':          return 'Password must be at least 6 characters.';
-      case 'user-not-found':         return 'No account found with this email.';
-      case 'wrong-password':         return 'Incorrect password. Please try again.';
-      case 'too-many-requests':      return 'Too many attempts. Please try again later.';
-      case 'network-request-failed': return 'No internet connection. Please try again.';
-      default:                       return 'Something went wrong. Please try again.';
+      case 'email-already-in-use':
+        return 'An account with this email already exists.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'weak-password':
+        return 'Password must be at least 6 characters.';
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'No internet connection. Please try again.';
+      default:
+        return 'Something went wrong. Please try again.';
     }
   }
 }

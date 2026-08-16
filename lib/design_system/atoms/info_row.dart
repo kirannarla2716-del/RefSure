@@ -10,9 +10,12 @@ class InfoRow extends StatelessWidget {
   final Color? color;
   const InfoRow(this.icon, this.text, {super.key, this.color});
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Icon(icon, size: 13, color: color ?? AppColors.textHint),
-    const SizedBox(width: 4),
-    Text(text, style: GoogleFonts.inter(fontSize: 12, color: color ?? AppColors.textSecond)),
-  ]);
+  Widget build(BuildContext context) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: color ?? AppColors.textHint),
+        const SizedBox(width: 4),
+        Text(text,
+            style: GoogleFonts.inter(
+                fontSize: 12, color: color ?? AppColors.textSecond)),
+      ]);
 }

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../core/enums/enums.dart';
 import '../design_system/design_system.dart';
 import '../providers/app_provider.dart';
+import '../services/trusted_account_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,13 +25,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   UserRole? _role;
 
   final _firstName = TextEditingController();
-  final _lastName  = TextEditingController();
-  final _email     = TextEditingController();
-  final _org       = TextEditingController();
+  final _lastName = TextEditingController();
+  final _email = TextEditingController();
+  final _org = TextEditingController();
   String? _resumeUrl;
   String? _resumeName;
   bool _uploadingResume = false;
   bool _saving = false;
+  bool _waitingForProfile = false;
   String? _error;
 
   @override
@@ -52,8 +54,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   void dispose() {
-    _firstName.dispose(); _lastName.dispose();
-    _email.dispose(); _org.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    _org.dispose();
     super.dispose();
   }
 
@@ -73,156 +77,193 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       });
     }
     return Scaffold(
-    backgroundColor: AppColors.bg,
-    appBar: AppBar(
-      title: const Text('Set up your profile'),
-      leading: _step == 1
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => setState(() => _step = 0))
-          : null,
-    ),
-    body: SafeArea(child: Column(children: [
-      LinearProgressIndicator(
-        value: (_step + 1) / 2,
-        backgroundColor: AppColors.border,
-        color: AppColors.primary, minHeight: 3),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Row(children: [
-          Text('Step ${_step + 1} of 2', style: GoogleFonts.inter(
-            fontSize: 12, color: AppColors.textHint)),
-        ]),
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Text('Set up your profile'),
+        leading: _step == 1
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _step = 0))
+            : null,
       ),
-      Expanded(child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-        child: _step == 0 ? _roleStep() : _detailsStep(),
-      )),
-    ])),
+      body: SafeArea(
+          child: Column(children: [
+        LinearProgressIndicator(
+            value: (_step + 1) / 2,
+            backgroundColor: AppColors.border,
+            color: AppColors.primary,
+            minHeight: 3),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(children: [
+            Text('Step ${_step + 1} of 2',
+                style:
+                    GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
+          ]),
+        ),
+        Expanded(
+          child: _waitingForProfile
+              ? const Center(
+                  child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Finishing your profile setup...'),
+                  ],
+                ))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: _step == 0 ? _roleStep() : _detailsStep(),
+                ),
+        ),
+      ])),
     );
   }
 
   // ── Step 1: role selection ──────────────────────────────────
-  Widget _roleStep() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 8),
-    Text('How will you use RefSure?', style: GoogleFonts.inter(
-      fontSize: 22, fontWeight: FontWeight.w800)),
-    const SizedBox(height: 4),
-    Text('You can switch this later from your profile.',
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
-    const SizedBox(height: 24),
-
-    _RoleCard(
-      icon: Icons.person_search_outlined,
-      title: 'Job Seeker',
-      subtitle: 'Find jobs and request referrals from trusted insiders.',
-      selected: _role == UserRole.seeker,
-      onTap: () => setState(() => _role = UserRole.seeker),
-    ),
-    const SizedBox(height: 12),
-    _RoleCard(
-      icon: Icons.handshake_outlined,
-      title: 'Referrer',
-      subtitle: 'Share open roles and refer strong candidates from your network.',
-      selected: _role == UserRole.provider,
-      onTap: () => setState(() => _role = UserRole.provider),
-    ),
-
-    const SizedBox(height: 28),
-    ElevatedButton(
-      onPressed: _role == null ? null : () => setState(() => _step = 1),
-      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-      child: const Text('Continue')),
-  ]);
+  Widget _roleStep() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 8),
+        Text('How will you use RefSure?',
+            style:
+                GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text('You can switch this later from your profile.',
+            style:
+                GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
+        const SizedBox(height: 24),
+        _RoleCard(
+          icon: Icons.person_search_outlined,
+          title: 'Job Seeker',
+          subtitle: 'Find jobs and request referrals from trusted insiders.',
+          selected: _role == UserRole.seeker,
+          onTap: () => setState(() => _role = UserRole.seeker),
+        ),
+        const SizedBox(height: 12),
+        _RoleCard(
+          icon: Icons.handshake_outlined,
+          title: 'Referrer',
+          subtitle:
+              'Share open roles and refer strong candidates from your network.',
+          selected: _role == UserRole.provider,
+          onTap: () => setState(() => _role = UserRole.provider),
+        ),
+        const SizedBox(height: 28),
+        ElevatedButton(
+            onPressed: _role == null ? null : () => setState(() => _step = 1),
+            style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50)),
+            child: const Text('Continue')),
+      ]);
 
   // ── Step 2: details sheet ───────────────────────────────────
-  Widget _detailsStep() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 8),
-    Text('Tell us about you', style: GoogleFonts.inter(
-      fontSize: 22, fontWeight: FontWeight.w800)),
-    const SizedBox(height: 4),
-    Text('Setting up as $_roleLabel.',
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
-    const SizedBox(height: 20),
+  Widget _detailsStep() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 8),
+        Text('Tell us about you',
+            style:
+                GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text('Setting up as $_roleLabel.',
+            style:
+                GoogleFonts.inter(fontSize: 14, color: AppColors.textSecond)),
+        const SizedBox(height: 20),
 
-    Row(children: [
-      Expanded(child: TextField(controller: _firstName,
-        textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(
-          labelText: 'First name', hintText: 'Aanya'))),
-      const SizedBox(width: 12),
-      Expanded(child: TextField(controller: _lastName,
-        textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(
-          labelText: 'Last name', hintText: 'Sharma'))),
-    ]),
-    const SizedBox(height: 14),
+        Row(children: [
+          Expanded(
+              child: TextField(
+                  controller: _firstName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                      labelText: 'First name', hintText: 'Aanya'))),
+          const SizedBox(width: 12),
+          Expanded(
+              child: TextField(
+                  controller: _lastName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                      labelText: 'Last name', hintText: 'Sharma'))),
+        ]),
+        const SizedBox(height: 14),
 
-    TextField(controller: _email,
-      keyboardType: TextInputType.emailAddress,
-      decoration: const InputDecoration(
-        labelText: 'Email', hintText: 'you@example.com',
-        prefixIcon: Icon(Icons.mail_outline))),
-    const SizedBox(height: 14),
+        TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'you@example.com',
+                prefixIcon: Icon(Icons.mail_outline))),
+        const SizedBox(height: 14),
 
-    TextField(controller: _org,
-      textCapitalization: TextCapitalization.words,
-      decoration: const InputDecoration(
-        labelText: 'Organisation',
-        hintText: 'Where you work or last worked',
-        prefixIcon: Icon(Icons.business_outlined))),
-    const SizedBox(height: 18),
+        TextField(
+            controller: _org,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+                labelText: 'Organisation',
+                hintText: 'Where you work or last worked',
+                prefixIcon: Icon(Icons.business_outlined))),
+        const SizedBox(height: 18),
 
-    // CV upload — required for seekers, optional for referrers.
-    Row(children: [
-      Text('CV / Resume', style: GoogleFonts.inter(
-        fontSize: 14, fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary)),
-      const SizedBox(width: 6),
-      Text('(optional)',  // CV optional — can be added later from profile
-        style: GoogleFonts.inter(
-          fontSize: 12, color: AppColors.textHint)),
-    ]),
-    const SizedBox(height: 8),
-    _CvUploadTile(
-      fileName: _resumeName,
-      uploading: _uploadingResume,
-      onTap: _uploadResume,
-    ),
+        // CV upload — required for seekers, optional for referrers.
+        Row(children: [
+          Text('CV / Resume',
+              style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+          const SizedBox(width: 6),
+          Text('(optional)', // CV optional — can be added later from profile
+              style:
+                  GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
+        ]),
+        const SizedBox(height: 8),
+        _CvUploadTile(
+          fileName: _resumeName,
+          uploading: _uploadingResume,
+          onTap: _uploadResume,
+        ),
 
-    if (_error != null) ...[
-      const SizedBox(height: 12),
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.redLight,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.red.withOpacity(0.3))),
-        child: Row(children: [
-          const Icon(Icons.error_outline, size: 16, color: AppColors.red),
-          const SizedBox(width: 8),
-          Expanded(child: Text(_error!, style: GoogleFonts.inter(
-            fontSize: 12, color: AppColors.red))),
-        ])),
-    ],
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: AppColors.redLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.red.withOpacity(0.3))),
+              child: Row(children: [
+                const Icon(Icons.error_outline, size: 16, color: AppColors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(_error!,
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppColors.red))),
+              ])),
+        ],
 
-    const SizedBox(height: 24),
-    ElevatedButton(
-      onPressed: _saving ? null : _finish,
-      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-      child: _saving
-          ? const SizedBox(width: 20, height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : const Text('Finish setup')),
-  ]);
+        const SizedBox(height: 24),
+        ElevatedButton(
+            onPressed: _saving ? null : _finish,
+            style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50)),
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Text('Finish setup')),
+      ]);
 
   // ── Actions ─────────────────────────────────────────────────
 
   Future<void> _uploadResume() async {
     if (_uploadingResume) return;
-    setState(() { _uploadingResume = true; _error = null; });
+    setState(() {
+      _uploadingResume = true;
+      _error = null;
+    });
     final prov = context.read<AppProvider>();
     final url = await prov.uploadResume();
     if (!mounted) return;
@@ -242,7 +283,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   String? _validate() {
     if (_firstName.text.trim().isEmpty) return 'Enter your first name.';
-    if (_lastName.text.trim().isEmpty)  return 'Enter your last name.';
+    if (_lastName.text.trim().isEmpty) return 'Enter your last name.';
     if (_email.text.trim().isEmpty || !_email.text.contains('@')) {
       return 'Enter a valid email.';
     }
@@ -257,18 +298,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() => _error = problem);
       return;
     }
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
 
     final prov = context.read<AppProvider>();
     final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}';
 
     final updates = <String, dynamic>{
-      'role':            _role!.name,
-      'name':            fullName,
-      'email':           _email.text.trim(),
-      'company':         _org.text.trim(),
-      'currentCompany':  _org.text.trim(),
-      'headline':        _isReferrer
+      'name': fullName,
+      'email': _email.text.trim(),
+      'company': _org.text.trim(),
+      'currentCompany': _org.text.trim(),
+      'headline': _isReferrer
           ? 'Referrer at ${_org.text.trim()}'
           : 'Looking for opportunities',
       'profileComplete': _isReferrer ? 70 : 80,
@@ -278,21 +321,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     String? err;
     if (prov.currentUser == null) {
-      err = await prov.createProfile(updates);
+      // Role is allowed on initial profile creation, but is protected on all
+      // subsequent profile updates.
+      err = await prov.createProfile({...updates, 'role': _role!.name});
     } else {
-      await prov.updateProfile(updates);
-      if (_role != prov.currentUser?.role) {
-        await prov.setActiveRole(_role!);
+      try {
+        if (_role != prov.currentUser?.role) {
+          await prov.setActiveRole(_role!);
+        }
+        await prov.updateProfile(updates);
+      } on TrustedAccountException catch (error) {
+        err = error.message;
+      } on Object {
+        err = 'We could not finish setting up your profile. Please try again.';
       }
     }
 
     if (!mounted) return;
-    setState(() => _saving = false);
+    setState(() {
+      _saving = false;
+      _waitingForProfile =
+          err == null && (prov.currentUser?.profileComplete ?? 0) < 70;
+    });
     if (err != null) {
+      setState(() => _error = err);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), backgroundColor: AppColors.red));
+          SnackBar(content: Text(err), backgroundColor: AppColors.red));
+      return;
     }
-    context.go('/');
+    if (!_waitingForProfile) context.go('/');
   }
 }
 
@@ -305,44 +362,58 @@ class _RoleCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   const _RoleCard({
-    required this.icon, required this.title,
-    required this.subtitle, required this.selected, required this.onTap,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primaryLight : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
-          width: selected ? 2 : 1)),
-      child: Row(children: [
-        Container(
-          width: 44, height: 44,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: selected ? AppColors.surface : AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(12)),
-          alignment: Alignment.center,
-          child: Icon(icon, size: 22, color: AppColors.primary)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: GoogleFonts.inter(
-            fontSize: 15, fontWeight: FontWeight.w700,
-            color: selected ? AppColors.primary : AppColors.textPrimary)),
-          const SizedBox(height: 2),
-          Text(subtitle, style: GoogleFonts.inter(
-            fontSize: 12, color: AppColors.textSecond, height: 1.4)),
-        ])),
-        if (selected)
-          const Icon(Icons.check_circle, color: AppColors.primary),
-      ]),
-    ),
-  );
+              color: selected ? AppColors.primaryLight : AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: selected ? AppColors.primary : AppColors.border,
+                  width: selected ? 2 : 1)),
+          child: Row(children: [
+            Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    color:
+                        selected ? AppColors.surface : AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12)),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 22, color: AppColors.primary)),
+            const SizedBox(width: 14),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(title,
+                      style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecond,
+                          height: 1.4)),
+                ])),
+            if (selected)
+              const Icon(Icons.check_circle, color: AppColors.primary),
+          ]),
+        ),
+      );
 }
 
 class _CvUploadTile extends StatelessWidget {
@@ -350,7 +421,9 @@ class _CvUploadTile extends StatelessWidget {
   final bool uploading;
   final VoidCallback onTap;
   const _CvUploadTile({
-    required this.fileName, required this.uploading, required this.onTap,
+    required this.fileName,
+    required this.uploading,
+    required this.onTap,
   });
 
   @override
@@ -365,31 +438,38 @@ class _CvUploadTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: hasFile ? AppColors.emerald.withOpacity(0.4)
-                  : AppColors.border)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: hasFile
+                      ? AppColors.emerald.withOpacity(0.4)
+                      : AppColors.border)),
           child: Row(children: [
             if (uploading)
-              const SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2))
+              const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
             else
               Icon(hasFile ? Icons.check_circle_outline : Icons.upload_file,
-                size: 20,
-                color: hasFile ? AppColors.emerald : AppColors.primary),
+                  size: 20,
+                  color: hasFile ? AppColors.emerald : AppColors.primary),
             const SizedBox(width: 12),
-            Expanded(child: Text(
-              uploading
-                  ? 'Uploading…'
-                  : (fileName ?? 'Upload PDF or DOCX'),
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: hasFile ? AppColors.emerald : AppColors.textPrimary,
-                fontWeight: FontWeight.w600))),
+            Expanded(
+                child: Text(
+                    uploading
+                        ? 'Uploading…'
+                        : (fileName ?? 'Upload PDF or DOCX'),
+                    style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color:
+                            hasFile ? AppColors.emerald : AppColors.textPrimary,
+                        fontWeight: FontWeight.w600))),
             if (hasFile && !uploading)
-              Text('Replace', style: GoogleFonts.inter(
-                fontSize: 12, color: AppColors.primary,
-                fontWeight: FontWeight.w600)),
+              Text('Replace',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600)),
           ]),
         ),
       ),

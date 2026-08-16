@@ -1,77 +1,347 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
 
-    // ── Users ─────────────────────────────────────────────────────────
-    // Any authenticated user can read user profiles (needed for leaderboard,
-    // provider/seeker discovery). Users can only update/delete their own doc.
-    // Create is open to any authenticated user so the client-side seeder
-    // can write seed provider profiles.
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isProvider() {
+      return signedIn()
+        && currentUser().data.role == 'provider';
+    }
+
+    function protectedProfileFields() {
+      return [
+        'id',
+        'role',
+        'createdAt',
+        'applicationsSubmitted',
+        'applicationsReceived',
+        'applicationStatusCounts',
+        'verified',
+        'orgVerified',
+        'orgEmail',
+        'referralsReceived',
+        'referralsMade',
+        'successfulReferrals',
+        'totalJobsPosted',
+        'successRate',
+        'responseTime',
+        'avgResponseHours',
+        'responseRate',
+        'trustScore',
+        'gratitudesReceived',
+        'activeReferralRequests',
+        'adminAccess',
+        'adminDisabled',
+        'additionalAccess',
+        'onboardingExceptionReason',
+        'onboardingExceptionUntil'
+      ];
+    }
+
+    function profileFields() {
+      return [
+        'id',
+        'role',
+        'name',
+        'headline',
+        'company',
+        'verified',
+        'orgVerified',
+        'title',
+        'location',
+        'experience',
+        'skills',
+        'preferredRoles',
+        'bio',
+        'photoUrl',
+        'email',
+        'orgEmail',
+        'linkedinUrl',
+        'resumeUrl',
+        'createdAt',
+        'updatedAt',
+        'lastActiveAt',
+        'onboardingSource',
+        'education',
+        'currentCompany',
+        'noticePeriod',
+        'expectedSalary',
+        'activelyLooking',
+        'profileComplete',
+        'referralsReceived',
+        'referralsMade',
+        'successfulReferrals',
+        'totalJobsPosted',
+        'successRate',
+        'responseTime',
+        'avgResponseHours',
+        'responseRate',
+        'trustScore',
+        'gratitudesReceived',
+        'availableForReferrals',
+        'weeklyReferralCapacity',
+        'activeReferralRequests',
+        'applicationsSubmitted',
+        'applicationsReceived',
+        'applicationStatusCounts',
+        'adminAccess',
+        'adminDisabled',
+        'additionalAccess',
+        'onboardingExceptionReason',
+        'onboardingExceptionUntil'
+      ];
+    }
+
+    function jobFields() {
+      return [
+        'id',
+        'providerId',
+        'company',
+        'companyLogo',
+        'title',
+        'department',
+        'location',
+        'workMode',
+        'minExp',
+        'maxExp',
+        'salaryMin',
+        'salaryMax',
+        'skills',
+        'preferredSkills',
+        'tags',
+        'description',
+        'providerNote',
+        'status',
+        'applicants',
+        'viewCount',
+        'applicationCount',
+        'deadline',
+        'postedAt',
+        'jobRefId',
+        'isHot',
+        'source',
+        'externalUrl'
+      ];
+    }
+
+    function validNewProfile(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(profileFields())
+        && data.id == userId
+        && data.role in ['seeker', 'provider']
+        && data.verified == false
+        && data.orgVerified == false
+        && data.referralsReceived == 0
+        && data.referralsMade == 0
+        && data.successfulReferrals == 0
+        && data.totalJobsPosted == 0
+        && data.successRate == 0
+        && data.gratitudesReceived == 0
+        && data.get('activeReferralRequests', 0) == 0
+        && data.trustScore == 0
+        && data.get('applicationsSubmitted', 0) == 0
+        && data.get('applicationsReceived', 0) == 0
+        && data.get('applicationStatusCounts', {}).size() == 0;
+    }
+
     match /users/{userId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validNewProfile(userId);
+      allow update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(profileFields())
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(protectedProfileFields());
+      allow delete: if isOwner(userId);
     }
 
-    // ── Jobs ──────────────────────────────────────────────────────────
-    // Any authenticated user can read jobs.
-    // Any authenticated user can create a job (needed for client-side seeding).
-    // Only the job's provider can update/delete their own jobs.
+    match /users/{userId}/blocks/{blockedUserId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && blockedUserId != userId
+        && request.resource.data.keys().hasOnly([
+          'ownerId', 'blockedUserId', 'createdAt'
+        ])
+        && request.resource.data.ownerId == userId
+        && request.resource.data.blockedUserId == blockedUserId
+        && request.resource.data.createdAt is timestamp;
+      allow update: if false;
+      allow delete: if isOwner(userId)
+        && resource.data.ownerId == userId;
+    }
+
+    // Public discovery data is projected by trusted Admin SDK code. It must
+    // never contain email, resume, organization email, or other private data.
+    match /publicProfiles/{userId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /adminEvents/{eventId} {
+      allow read, write: if false;
+    }
+
     match /jobs/{jobId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null
-                    && resource.data.providerId == request.auth.uid;
+      allow read: if signedIn();
+      allow create: if isProvider()
+        && request.resource.data.keys().hasOnly(jobFields())
+        && request.resource.data.id == jobId
+        && request.resource.data.providerId == request.auth.uid
+        && request.resource.data.status in ['active', 'closed']
+        && request.resource.data.applicants == 0
+        && request.resource.data.viewCount == 0
+        && request.resource.data.get('applicationCount', 0) == 0;
+      allow update: if isProvider()
+        && request.resource.data.keys().hasOnly(jobFields())
+        && resource.data.providerId == request.auth.uid
+        && request.resource.data.providerId == resource.data.providerId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.applicants == resource.data.applicants
+        && request.resource.data.viewCount == resource.data.viewCount
+        && request.resource.data.get('applicationCount', 0)
+          == resource.data.get('applicationCount', 0)
+        && request.resource.data.status in ['active', 'closed']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'company',
+          'companyLogo',
+          'title',
+          'department',
+          'location',
+          'workMode',
+          'minExp',
+          'maxExp',
+          'salaryMin',
+          'salaryMax',
+          'skills',
+          'preferredSkills',
+          'tags',
+          'description',
+          'providerNote',
+          'status',
+          'deadline',
+          'isHot',
+          'externalUrl'
+        ]);
+      allow delete: if isProvider()
+        && resource.data.providerId == request.auth.uid;
     }
 
-    // ── Applications ──────────────────────────────────────────────────
+    // Match reports and application lifecycle events are authoritative
+    // backend output. Clients may only read applications they participate in.
     match /applications/{appId} {
-      allow read:   if request.auth != null
-                    && (resource.data.seekerId   == request.auth.uid
-                     || resource.data.providerId == request.auth.uid);
-      allow create: if request.auth != null
-                    && request.resource.data.seekerId == request.auth.uid;
-      allow update: if request.auth != null
-                    && (resource.data.seekerId   == request.auth.uid
-                     || resource.data.providerId == request.auth.uid);
+      allow read: if signedIn()
+        && (
+          resource.data.seekerId == request.auth.uid
+          || resource.data.providerId == request.auth.uid
+        );
+      allow write: if false;
     }
 
-    // ── Messages ──────────────────────────────────────────────────────
+    match /referralReceipts/{receiptId} {
+      allow read: if signedIn()
+        && (
+          resource.data.seekerId == request.auth.uid
+          || resource.data.providerId == request.auth.uid
+        );
+      allow write: if false;
+    }
+
     match /messages/{msgId} {
-      allow read, write: if request.auth != null
-                         && (resource.data.fromId == request.auth.uid
-                          || resource.data.toId   == request.auth.uid);
-      allow create: if request.auth != null
-                    && request.resource.data.fromId == request.auth.uid;
+      allow read: if signedIn()
+        && (
+          resource.data.fromId == request.auth.uid
+          || resource.data.toId == request.auth.uid
+        );
+      allow create: if signedIn()
+        && request.resource.data.fromId == request.auth.uid
+        && request.resource.data.toId is string
+        && request.resource.data.toId != request.auth.uid
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(request.resource.data.toId))
+        && !exists(/databases/$(database)/documents/users/$(request.resource.data.toId)/blocks/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.toId))
+        && request.resource.data.keys().hasOnly([
+          'fromId', 'toId', 'text', 'sentAt', 'read'
+        ])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 4000
+        && request.resource.data.sentAt is timestamp
+        && request.resource.data.read == false;
+      allow update, delete: if false;
     }
 
-    // ── Notifications ─────────────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read, write: if request.auth != null
-                         && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, delete: if false;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && resource.data.read == false
+        && request.resource.data.read == true
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['read']);
     }
 
-    // ── Gratitudes ────────────────────────────────────────────────────
-    match /gratitudes/{gId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
+    match /gratitudes/{gratitudeId} {
+      allow read: if signedIn()
+        && (
+          resource.data.fromSeekerId == request.auth.uid
+          || resource.data.toReferrerId == request.auth.uid
+        );
+      allow write: if false;
     }
 
-    // ── OTP Verifications ─────────────────────────────────────────────
+    match /safetyReports/{reportId} {
+      allow read, write: if false;
+    }
+
+    match /safetyRateLimits/{rateId} {
+      allow read, write: if false;
+    }
+
+    match /moderationEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /privacyRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    match /privacyEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if false;
+    }
+
     match /otp_verifications/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
 
-    // ── Meta / Seed status ────────────────────────────────────────────
     match /_meta/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
 
-    // ── Leaderboard ───────────────────────────────────────────────────
     match /leaderboard/{docId} {
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

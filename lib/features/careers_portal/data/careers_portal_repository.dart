@@ -26,8 +26,9 @@ class CareersPortalRepository {
   ///
   /// [providerId] is the uid of the referrer/provider performing the import.
   Future<String?> importJob(ExternalJob ext, String providerId) {
-    final cleanedDescription = _stripHtml(ext.description ?? '');
-    final extractedSkills    = _extractSkills(cleanedDescription);
+    final cleanedDescription =
+        _stripHtml(_decodeHtmlEntities(ext.description ?? ''));
+    final extractedSkills = _extractSkills(cleanedDescription);
     final deadline = DateTime.now().add(const Duration(days: 30));
     final deadlineStr = [
       deadline.year.toString(),
@@ -35,13 +36,14 @@ class CareersPortalRepository {
       deadline.day.toString().padLeft(2, '0'),
     ].join('-');
 
+    final stableImportId = const Uuid()
+        .v5(Namespace.url.value, '$providerId|${ext.company}|${ext.id}')
+        .replaceAll('-', '');
     final job = Job(
-      id: '',
+      id: 'career_$stableImportId',
       providerId: providerId,
       company: ext.company,
-      companyLogo: ext.company.isNotEmpty
-          ? ext.company[0].toUpperCase()
-          : '?',
+      companyLogo: ext.company.isNotEmpty ? ext.company[0].toUpperCase() : '?',
       title: ext.title,
       department: ext.department ?? 'General',
       location: ext.location ?? 'Not specified',
@@ -52,7 +54,7 @@ class CareersPortalRepository {
       description: cleanedDescription,
       deadline: deadlineStr,
       postedAt: ext.postedAt,
-      jobRefId: const Uuid().v4().substring(0, 8).toUpperCase(),
+      jobRefId: ext.id,
       source: JobSource.careersPortal,
       externalUrl: ext.applyUrl,
     );
@@ -69,9 +71,16 @@ class CareersPortalRepository {
 
   /// Very lightweight HTML-to-text strip for job descriptions fetched
   /// from Greenhouse (which returns raw HTML).
-  static String _stripHtml(String html) =>
-      html
-          .replaceAll(RegExp(r'<[^>]+>'), ' ')
-          .replaceAll(RegExp(r'\s{2,}'), ' ')
-          .trim();
+  static String _stripHtml(String html) => html
+      .replaceAll(RegExp(r'<[^>]+>'), ' ')
+      .replaceAll(RegExp(r'\s{2,}'), ' ')
+      .trim();
+
+  static String _decodeHtmlEntities(String value) => value
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&');
 }

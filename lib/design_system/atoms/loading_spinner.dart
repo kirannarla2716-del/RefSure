@@ -2,8 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:refsure/design_system/theme/app_colors.dart';
 
 class LoadingSpinner extends StatelessWidget {
-  const LoadingSpinner({super.key});
+  final String semanticLabel;
+
+  const LoadingSpinner({
+    super.key,
+    this.semanticLabel = 'Loading',
+  });
+
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator(color: AppColors.primary));
+  Widget build(BuildContext context) => Center(
+        child: Semantics(
+          label: semanticLabel,
+          liveRegion: true,
+          child: const CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
 }

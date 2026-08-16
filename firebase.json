@@ -1,37 +1,12 @@
 {
   "flutter": {
     "platforms": {
-      "android": {
-        "default": {
-          "projectId": "refsure-28a67",
-          "appId": "1:179190872224:android:f619f8bcb74f373f8031c5",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "ios": {
-        "default": {
-          "projectId": "refsure-28a67",
-          "appId": "1:179190872224:ios:6cbe0be78cb4fe848031c5",
-          "uploadDebugSymbols": false,
-          "fileOutput": "ios/Runner/GoogleService-Info.plist"
-        }
-      },
-      "macos": {
-        "default": {
-          "projectId": "refsure-28a67",
-          "appId": "1:179190872224:ios:6cbe0be78cb4fe848031c5",
-          "uploadDebugSymbols": false,
-          "fileOutput": "macos/Runner/GoogleService-Info.plist"
-        }
-      },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "refsure-28a67",
+          "projectId": "refsure-d6e3a",
           "configurations": {
-            "android": "1:179190872224:android:f619f8bcb74f373f8031c5",
-            "ios": "1:179190872224:ios:6cbe0be78cb4fe848031c5",
-            "macos": "1:179190872224:ios:6cbe0be78cb4fe848031c5",
-            "web": "1:179190872224:web:a93092dbb2a861d68031c5"
+            "web": "1:1085369749507:web:e607ca3dcc14665e46fe36",
+            "ios": "1:1085369749507:ios:f1eed666dca41b7e46fe36"
           }
         }
       }
@@ -43,5 +18,41 @@
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" exec -- tsc --module commonjs --moduleResolution node --target es2022 --strict --esModuleInterop --skipLibCheck --sourceMap --outDir lib --rootDir src src/index.ts"
+    ]
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
   }
 }

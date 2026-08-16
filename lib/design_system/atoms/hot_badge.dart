@@ -13,18 +13,22 @@ class HotBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: AppColors.primary, borderRadius: BorderRadius.circular(4),
-    ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.local_fire_department_outlined,
-          size: 11, color: Colors.white),
-      const SizedBox(width: 3),
-      Text('HOT', style: GoogleFonts.inter(
-        fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white,
-        letterSpacing: 0.5,
-      )),
-    ]),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.local_fire_department_outlined,
+              size: 11, color: Colors.white),
+          const SizedBox(width: 3),
+          Text('HOT',
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              )),
+        ]),
+      );
 }

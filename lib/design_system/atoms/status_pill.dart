@@ -9,10 +9,13 @@ class StatusPill extends StatelessWidget {
   const StatusPill({super.key, required this.status, required this.label});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(
-      color: AppColors.statusBg(status), borderRadius: BorderRadius.circular(20)),
-    child: Text(label, style: GoogleFonts.inter(
-      fontSize: 11, fontWeight: FontWeight.w600,
-      color: AppColors.statusFg(status))));
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+          color: AppColors.statusBg(status),
+          borderRadius: BorderRadius.circular(20)),
+      child: Text(label,
+          style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.statusFg(status))));
 }

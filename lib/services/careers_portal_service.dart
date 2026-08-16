@@ -1,6 +1,7 @@
 // lib/services/careers_portal_service.dart
 // ignore_for_file: require_trailing_commas
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -41,12 +42,17 @@ class CareersPortalResult {
 /// Each source is tried with several slug variants derived from the
 /// company name (e.g. "Goldman Sachs" → "goldman-sachs", "goldmansachs").
 class CareersPortalService {
-  CareersPortalService({http.Client? client})
-      : _client = client ?? http.Client();
+  CareersPortalService({
+    http.Client? client,
+    Duration probeTimeout = const Duration(seconds: 6),
+    Duration discoveryTimeout = const Duration(seconds: 8),
+  })  : _client = client ?? http.Client(),
+        _probeTimeout = probeTimeout,
+        _discoveryTimeout = discoveryTimeout;
 
   final http.Client _client;
-
-  static const _timeout = Duration(seconds: 12);
+  final Duration _probeTimeout;
+  final Duration _discoveryTimeout;
 
   // ── Public API ────────────────────────────────────────────────
 
@@ -62,39 +68,126 @@ class CareersPortalService {
     bool filterLast30Days = false,
   }) async {
     final slugs = _buildSlugs(companyName);
-
+    final probes = <Future<_ProbeOutcome>>[];
     for (final slug in slugs) {
-      // Try each ATS for this slug variant
-      for (final attempt in [
-        () => _tryGreenhouse(slug, companyName),
-        () => _tryLever(slug, companyName),
-        () => _tryBambooHR(slug, companyName),
-        () => _tryWorkday(slug, companyName),
-      ]) {
-        try {
-          final (jobs, platform) = await attempt();
-          if (jobs.isNotEmpty) {
-            final filtered = filterLast30Days
-                ? jobs.where((j) => j.isWithin30Days).toList()
-                : jobs;
-            return CareersPortalResult(
-              jobs: filtered,
-              platform: platform,
-              companySlug: slug,
-              totalFetched: jobs.length,
-            );
-          }
-        } catch (_) {
-          // Swallow errors and try the next source
-        }
-      }
+      probes.addAll([
+        _probe(
+          AtsPlatform.greenhouse,
+          slug,
+          () => _tryGreenhouse(slug, companyName),
+        ),
+        _probe(
+          AtsPlatform.lever,
+          slug,
+          () => _tryLever(slug, companyName),
+        ),
+        _probe(
+          AtsPlatform.bamboohr,
+          slug,
+          () => _tryBambooHR(slug, companyName),
+        ),
+        _probe(
+          AtsPlatform.workday,
+          slug,
+          () => _tryWorkday(slug, companyName),
+        ),
+      ]);
     }
 
-    throw CareersPortalException(
-      'No open job listings found for "$companyName". '
-      'The company may use a different careers platform, '
-      'or the slug could not be detected automatically.',
+    var outcomes = <_ProbeOutcome>[];
+    try {
+      outcomes = await Future.wait(probes).timeout(_discoveryTimeout);
+    } on TimeoutException {
+      throw _unsupportedException(
+        companyName,
+        const [
+          CareersSourceDiagnostic(
+            source: 'Discovery',
+            slug: '',
+            detail:
+                'The careers sources did not respond before the time limit.',
+          ),
+        ],
+      );
+    }
+
+    for (final outcome in outcomes) {
+      if (outcome.jobs.isEmpty) continue;
+      final filtered = filterLast30Days
+          ? outcome.jobs.where((job) => job.isWithin30Days).toList()
+          : outcome.jobs;
+      return CareersPortalResult(
+        jobs: filtered,
+        platform: outcome.platform,
+        companySlug: outcome.slug,
+        totalFetched: outcome.jobs.length,
+      );
+    }
+
+    throw _unsupportedException(
+      companyName,
+      outcomes.map((outcome) => outcome.diagnostic).toList(),
     );
+  }
+
+  Future<_ProbeOutcome> _probe(
+    AtsPlatform platform,
+    String slug,
+    Future<(List<ExternalJob>, AtsPlatform)> Function() attempt,
+  ) async {
+    try {
+      final (jobs, _) = await attempt();
+      return _ProbeOutcome(
+        jobs: jobs,
+        platform: platform,
+        slug: slug,
+        diagnostic: CareersSourceDiagnostic(
+          source: _sourceName(platform),
+          slug: slug,
+          detail: jobs.isEmpty
+              ? 'Connected, but no open jobs were returned.'
+              : 'Found ${jobs.length} open jobs.',
+        ),
+      );
+    } on TimeoutException {
+      return _ProbeOutcome.failed(
+        platform,
+        slug,
+        'Timed out after ${_probeTimeout.inSeconds} seconds.',
+      );
+    } catch (error) {
+      return _ProbeOutcome.failed(platform, slug, _diagnosticMessage(error));
+    }
+  }
+
+  CareersPortalException _unsupportedException(
+    String companyName,
+    List<CareersSourceDiagnostic> diagnostics,
+  ) {
+    final fallbackUrl = Uri.https(
+      'www.google.com',
+      '/search',
+      {'q': '$companyName official careers jobs'},
+    );
+    return CareersPortalException(
+      'No open job listings found for "$companyName". '
+      'Try the official careers search link below, or check the company name.',
+      diagnostics: diagnostics,
+      officialCareersUrl: fallbackUrl,
+    );
+  }
+
+  static String _sourceName(AtsPlatform platform) => switch (platform) {
+        AtsPlatform.greenhouse => 'Greenhouse',
+        AtsPlatform.lever => 'Lever',
+        AtsPlatform.bamboohr => 'BambooHR',
+        AtsPlatform.workday => 'Workday',
+        AtsPlatform.unknown => 'Unknown',
+      };
+
+  static String _diagnosticMessage(Object error) {
+    final text = error.toString().replaceFirst('Exception: ', '').trim();
+    return text.isEmpty ? 'Request failed.' : text;
   }
 
   void dispose() => _client.close();
@@ -131,8 +224,10 @@ class CareersPortalService {
 
     // Additional slug variants
     final words = cleaned.split(RegExp(r'\s+'));
-    final underscore = words.join('_');                          // e.g. "goldman_sachs"
-    final firstTwo  = words.length >= 2 ? words.take(2).join('-') : '';  // e.g. "goldman-sachs" (already in hyphen for 2 words, but useful for 3+)
+    final underscore = words.join('_'); // e.g. "goldman_sachs"
+    final firstTwo = words.length >= 2
+        ? words.take(2).join('-')
+        : ''; // e.g. "goldman-sachs" (already in hyphen for 2 words, but useful for 3+)
 
     // Deduplicate while preserving insertion order
     final seen = <String>{};
@@ -152,7 +247,7 @@ class CareersPortalService {
       '/v1/boards/$slug/jobs',
       {'content': 'true'},
     );
-    final response = await _client.get(uri).timeout(_timeout);
+    final response = await _client.get(uri).timeout(_probeTimeout);
     if (response.statusCode != 200) {
       throw Exception('Greenhouse ${response.statusCode}');
     }
@@ -162,8 +257,10 @@ class CareersPortalService {
 
     final jobs = rawJobs.map((j) {
       final m = j as Map<String, dynamic>;
-      final departments = (m['departments'] as List<dynamic>?) ?? [];
-      final offices = (m['offices'] as List<dynamic>?) ?? [];
+      final departments = ((m['departments'] as List<dynamic>?) ?? [])
+          .cast<Map<String, dynamic>>();
+      final offices = ((m['offices'] as List<dynamic>?) ?? [])
+          .cast<Map<String, dynamic>>();
       return ExternalJob(
         id: m['id'].toString(),
         title: (m['title'] as String?) ?? '',
@@ -172,7 +269,7 @@ class CareersPortalService {
             ? departments.first['name'] as String?
             : null,
         location: offices.isNotEmpty
-            ? offices.map((o) => o['name'] as String).join(', ')
+            ? offices.map((office) => office['name'] as String).join(', ')
             : null,
         description: m['content'] as String?,
         applyUrl: (m['absolute_url'] as String?) ?? '',
@@ -198,7 +295,7 @@ class CareersPortalService {
       '/v0/postings/$slug',
       {'mode': 'json'},
     );
-    final response = await _client.get(uri).timeout(_timeout);
+    final response = await _client.get(uri).timeout(_probeTimeout);
     if (response.statusCode != 200) {
       throw Exception('Lever ${response.statusCode}');
     }
@@ -217,8 +314,8 @@ class CareersPortalService {
         department: cats['department'] as String?,
         location: cats['location'] as String?,
         workMode: cats['commitment'] as String?,
-        description: (m['descriptionPlain'] as String?) ??
-            (m['description'] as String?),
+        description:
+            (m['descriptionPlain'] as String?) ?? (m['description'] as String?),
         applyUrl: (m['hostedUrl'] as String?) ?? '',
         postedAt: createdMs != null
             ? DateTime.fromMillisecondsSinceEpoch(createdMs)
@@ -244,7 +341,7 @@ class CareersPortalService {
     final response = await _client.get(
       uri,
       headers: {'Accept': 'application/json'},
-    ).timeout(_timeout);
+    ).timeout(_probeTimeout);
     if (response.statusCode != 200) {
       throw Exception('BambooHR ${response.statusCode}');
     }
@@ -297,7 +394,7 @@ class CareersPortalService {
             'searchText': '',
           }),
         )
-        .timeout(_timeout);
+        .timeout(_probeTimeout);
     if (response.statusCode != 200) {
       throw Exception('Workday ${response.statusCode}');
     }
@@ -334,9 +431,60 @@ class CareersPortalService {
 
 /// Thrown when [CareersPortalService] cannot find any listings.
 class CareersPortalException implements Exception {
-  const CareersPortalException(this.message);
+  const CareersPortalException(
+    this.message, {
+    this.diagnostics = const [],
+    this.officialCareersUrl,
+  });
+
   final String message;
+  final List<CareersSourceDiagnostic> diagnostics;
+  final Uri? officialCareersUrl;
 
   @override
   String toString() => 'CareersPortalException: $message';
+}
+
+class CareersSourceDiagnostic {
+  const CareersSourceDiagnostic({
+    required this.source,
+    required this.slug,
+    required this.detail,
+  });
+
+  final String source;
+  final String slug;
+  final String detail;
+
+  String get label => slug.isEmpty ? source : '$source ($slug)';
+}
+
+class _ProbeOutcome {
+  const _ProbeOutcome({
+    required this.jobs,
+    required this.platform,
+    required this.slug,
+    required this.diagnostic,
+  });
+
+  factory _ProbeOutcome.failed(
+    AtsPlatform platform,
+    String slug,
+    String detail,
+  ) =>
+      _ProbeOutcome(
+        jobs: const [],
+        platform: platform,
+        slug: slug,
+        diagnostic: CareersSourceDiagnostic(
+          source: CareersPortalService._sourceName(platform),
+          slug: slug,
+          detail: detail,
+        ),
+      );
+
+  final List<ExternalJob> jobs;
+  final AtsPlatform platform;
+  final String slug;
+  final CareersSourceDiagnostic diagnostic;
 }

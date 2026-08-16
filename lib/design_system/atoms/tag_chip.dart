@@ -9,9 +9,12 @@ class TagChip extends StatelessWidget {
   const TagChip(this.tag, {super.key});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    decoration: BoxDecoration(
-      color: AppColors.accentLight, borderRadius: BorderRadius.circular(4)),
-    child: Text('#$tag', style: GoogleFonts.inter(
-      fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.accent)));
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+          color: AppColors.accentLight, borderRadius: BorderRadius.circular(4)),
+      child: Text('#$tag',
+          style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: AppColors.accent)));
 }

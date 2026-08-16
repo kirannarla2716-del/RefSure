@@ -62,7 +62,9 @@ ThemeData buildAppTheme() {
       iconTheme: const IconThemeData(color: Colors.white),
       actionsIconTheme: const IconThemeData(color: Colors.white),
       titleTextStyle: GoogleFonts.inter(
-        fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white,
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
       ),
     ),
 
@@ -84,23 +86,24 @@ ThemeData buildAppTheme() {
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: const BorderSide(color: AppColors.border)),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: const BorderSide(color: AppColors.border)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: const BorderSide(color: AppColors.border)),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: const BorderSide(color: AppColors.border)),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2)),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: const BorderSide(color: AppColors.red)),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: const BorderSide(color: AppColors.red)),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: const BorderSide(color: AppColors.red, width: 2)),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: const BorderSide(color: AppColors.red, width: 2)),
       hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
       labelStyle: const TextStyle(color: AppColors.textSecond, fontSize: 14),
-      floatingLabelStyle: const TextStyle(color: AppColors.primary, fontSize: 14),
+      floatingLabelStyle:
+          const TextStyle(color: AppColors.primary, fontSize: 14),
       prefixIconColor: AppColors.textHint,
       suffixIconColor: AppColors.textHint,
     ),
@@ -113,7 +116,8 @@ ThemeData buildAppTheme() {
         disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
         disabledForegroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
       ),
@@ -123,7 +127,8 @@ ThemeData buildAppTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
       ),
@@ -134,7 +139,8 @@ ThemeData buildAppTheme() {
         foregroundColor: AppColors.primary,
         backgroundColor: Colors.white,
         side: const BorderSide(color: AppColors.primary),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
       ),
@@ -154,7 +160,9 @@ ThemeData buildAppTheme() {
     ),
 
     dividerTheme: const DividerThemeData(
-      color: AppColors.divider, thickness: 1, space: 1,
+      color: AppColors.divider,
+      thickness: 1,
+      space: 1,
     ),
 
     // ── Bottom navigation — white bar, green selected item ──────
@@ -173,13 +181,18 @@ ThemeData buildAppTheme() {
       selectedColor: AppColors.primary,
       disabledColor: AppColors.bg,
       labelStyle: GoogleFonts.inter(
-        fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecond,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textSecond,
       ),
       secondaryLabelStyle: GoogleFonts.inter(
-        fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
       ),
       side: const BorderSide(color: AppColors.border),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.pill)),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       checkmarkColor: Colors.white,
     ),
@@ -195,21 +208,28 @@ ThemeData buildAppTheme() {
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.all(Colors.white),
       trackColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? AppColors.primary : AppColors.border),
+          states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.border),
       trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
     ),
 
     radioTheme: RadioThemeData(
       fillColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? AppColors.primary : AppColors.textHint),
+          states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.textHint),
     ),
 
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? AppColors.primary : Colors.white),
+          states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : Colors.white),
       checkColor: WidgetStateProperty.all(Colors.white),
       side: const BorderSide(color: AppColors.border, width: 1.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xs)),
     ),
 
     progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -221,7 +241,8 @@ ThemeData buildAppTheme() {
       labelColor: AppColors.primary,
       unselectedLabelColor: AppColors.textHint,
       labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
-      unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+      unselectedLabelStyle:
+          GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
       dividerColor: AppColors.border,
     ),
 
@@ -229,13 +250,15 @@ ThemeData buildAppTheme() {
       backgroundColor: AppColors.textPrimary,
       contentTextStyle: GoogleFonts.inter(fontSize: 13, color: Colors.white),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md)),
     ),
 
     dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg)),
     ),
 
     bottomSheetTheme: const BottomSheetThemeData(

@@ -12,3 +12,4 @@ export '../core/models/message.dart';
 export '../core/models/notification.dart';
 export '../core/models/otp_record.dart';
 export '../core/models/gratitude.dart';
+export '../core/models/admin_user.dart';

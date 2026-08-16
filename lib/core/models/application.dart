@@ -16,7 +16,12 @@ class Application {
   final DateTime updatedAt;
   final DateTime? viewedAt;
   final String? providerNote;
+  final String? declineReason;
+  final String? referralReceiptId;
+  final DateTime? responseDueAt;
+  final DateTime? respondedAt;
   final bool strongMatchFlag;
+  final int version;
 
   Application({
     required this.id,
@@ -30,36 +35,55 @@ class Application {
     DateTime? updatedAt,
     this.viewedAt,
     this.providerNote,
+    this.declineReason,
+    this.referralReceiptId,
+    this.responseDueAt,
+    this.respondedAt,
     this.strongMatchFlag = false,
+    this.version = 1,
   })  : appliedAt = appliedAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
   String get statusLabel => switch (status) {
-    AppStatus.pending       => 'Pending',
-    AppStatus.underReview   => 'Under Review',
-    AppStatus.strongMatch   => 'Strong Match',
-    AppStatus.needsReview   => 'Needs Review',
-    AppStatus.shortlisted   => 'Shortlisted',
-    AppStatus.referred      => 'Referred',
-    AppStatus.interview     => 'Interview',
-    AppStatus.hired         => 'Hired',
-    AppStatus.notSelected   => 'Not Selected',
-    AppStatus.closed        => 'Position Closed',
-    _ => 'Pending',
-  };
+        AppStatus.pending => 'Pending',
+        AppStatus.accepted => 'Accepted',
+        AppStatus.declined => 'Declined',
+        AppStatus.withdrawn => 'Withdrawn',
+        AppStatus.expired => 'Expired',
+        AppStatus.underReview => 'Under Review',
+        AppStatus.strongMatch => 'Strong Match',
+        AppStatus.needsReview => 'Needs Review',
+        AppStatus.shortlisted => 'Shortlisted',
+        AppStatus.referred => 'Referred',
+        AppStatus.interview => 'Interview',
+        AppStatus.hired => 'Completed',
+        AppStatus.notSelected => 'Not Selected',
+        AppStatus.closed => 'Position Closed',
+        _ => 'Pending',
+      };
 
   String get statusKey => status.name;
 
   Map<String, dynamic> toFirestore() => {
-    'jobId': jobId, 'seekerId': seekerId, 'providerId': providerId,
-    'status': status.name, 'matchScore': matchScore,
-    'matchReport': matchReport?.toMap(),
-    'appliedAt': Timestamp.fromDate(appliedAt),
-    'updatedAt': Timestamp.fromDate(updatedAt),
-    'viewedAt': viewedAt != null ? Timestamp.fromDate(viewedAt!) : null,
-    'providerNote': providerNote,
-    'strongMatchFlag': strongMatchFlag,
-  };
+        'jobId': jobId,
+        'seekerId': seekerId,
+        'providerId': providerId,
+        'status': status.name,
+        'matchScore': matchScore,
+        'matchReport': matchReport?.toMap(),
+        'appliedAt': Timestamp.fromDate(appliedAt),
+        'updatedAt': Timestamp.fromDate(updatedAt),
+        'viewedAt': viewedAt != null ? Timestamp.fromDate(viewedAt!) : null,
+        'providerNote': providerNote,
+        'declineReason': declineReason,
+        'referralReceiptId': referralReceiptId,
+        'responseDueAt':
+            responseDueAt == null ? null : Timestamp.fromDate(responseDueAt!),
+        'respondedAt':
+            respondedAt == null ? null : Timestamp.fromDate(respondedAt!),
+        'strongMatchFlag': strongMatchFlag,
+        'version': version,
+      };
 
   factory Application.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -69,26 +93,50 @@ class Application {
       seekerId: d['seekerId'] ?? '',
       providerId: d['providerId'] ?? '',
       status: AppStatus.values.firstWhere(
-        (s) => s.name == (d['status'] ?? 'pending'),
-        orElse: () => AppStatus.pending),
+          (s) => s.name == (d['status'] ?? 'pending'),
+          orElse: () => AppStatus.pending),
       matchScore: d['matchScore'] ?? 0,
       matchReport: d['matchReport'] != null
           ? MatchReport.fromMap(Map<String, dynamic>.from(d['matchReport']))
           : null,
       appliedAt: (d['appliedAt'] as Timestamp?)?.toDate(),
       updatedAt: (d['updatedAt'] as Timestamp?)?.toDate(),
-      viewedAt:  (d['viewedAt']  as Timestamp?)?.toDate(),
+      viewedAt: (d['viewedAt'] as Timestamp?)?.toDate(),
       providerNote: d['providerNote'],
+      declineReason: d['declineReason'],
+      referralReceiptId: d['referralReceiptId'],
+      responseDueAt: (d['responseDueAt'] as Timestamp?)?.toDate(),
+      respondedAt: (d['respondedAt'] as Timestamp?)?.toDate(),
       strongMatchFlag: d['strongMatchFlag'] ?? false,
+      version: (d['version'] as num?)?.toInt() ?? 1,
     );
   }
 
-  Application copyWith({
-    AppStatus? status, String? providerNote, DateTime? viewedAt}) =>
-    Application(
-      id: id, jobId: jobId, seekerId: seekerId, providerId: providerId,
-      status: status ?? this.status, matchScore: matchScore,
-      matchReport: matchReport, appliedAt: appliedAt, updatedAt: DateTime.now(),
-      viewedAt: viewedAt ?? this.viewedAt, providerNote: providerNote ?? this.providerNote,
-      strongMatchFlag: strongMatchFlag);
+  Application copyWith(
+          {AppStatus? status,
+          String? providerNote,
+          String? declineReason,
+          String? referralReceiptId,
+          DateTime? viewedAt,
+          DateTime? responseDueAt,
+          DateTime? respondedAt,
+          int? version}) =>
+      Application(
+          id: id,
+          jobId: jobId,
+          seekerId: seekerId,
+          providerId: providerId,
+          status: status ?? this.status,
+          matchScore: matchScore,
+          matchReport: matchReport,
+          appliedAt: appliedAt,
+          updatedAt: DateTime.now(),
+          viewedAt: viewedAt ?? this.viewedAt,
+          providerNote: providerNote ?? this.providerNote,
+          declineReason: declineReason ?? this.declineReason,
+          referralReceiptId: referralReceiptId ?? this.referralReceiptId,
+          responseDueAt: responseDueAt ?? this.responseDueAt,
+          respondedAt: respondedAt ?? this.respondedAt,
+          strongMatchFlag: strongMatchFlag,
+          version: version ?? this.version);
 }
