@@ -1,6 +1,6 @@
 # RefSure Project Status
 
-Last verified: 2026-08-16
+Last verified: 2026-08-18
 
 This is the canonical handoff for RefSure. Update it when implementation,
 deployment state, test evidence, blockers, or release decisions change.
@@ -49,6 +49,24 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
 - Google Sign-In is hidden on iOS until an iOS OAuth client exists;
   email/password remains available.
 - App Store archive and device sign-off are pending.
+
+### Android
+
+- Android is not production-ready and has no verified release build.
+- The local machine has no Android SDK, so an App Bundle cannot currently be
+  compiled or validated.
+- Firebase options contain web and iOS registrations only; there is no
+  Android Firebase registration or `google-services.json`.
+- Duplicate Groovy/Kotlin Gradle configurations and duplicate MainActivity
+  packages disagree on the application ID (`com.refsure.app` versus
+  `com.refsure.refsure`). Release signing still uses the debug key.
+- The manifest references a missing `ic_launcher_round` resource.
+
+### Brand Assets
+
+- iOS, Android, and web currently ship the stock Flutter logo rather than a
+  RefSure production mark. A final icon system, adaptive Android icon, and
+  store artwork are required before mobile submission.
 
 ## Working And Verified
 
@@ -128,6 +146,19 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
 
 ## Latest Evidence
 
+### 2026-08-18 Mobile Release Audit
+
+- iOS static production preflight: passed.
+- Full Xcode is not installed, so archive, simulator/device, TestFlight, and
+  App Store validation remain unverified.
+- Android release App Bundle: not run because Flutter Doctor reports no
+  Android SDK.
+- Android Firebase registration, canonical package ID, release keystore,
+  Gradle configuration, round/adaptive icon, Play Console setup, and device
+  testing are incomplete.
+- Visual inspection confirmed that all current platform icons are stock
+  Flutter artwork, not RefSure branding.
+
 ### 2026-08-16 Production Readiness Audit
 
 - Full Flutter suite: 116 passed.
@@ -151,7 +182,8 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
   CI, security tests, migrations, lockfiles, documentation, and application
   changes as one reviewable release candidate.
 - GitHub publication completed to `kirannarla2716-del/RefSure` on branch
-  `codex/refsure-latest-release`. Initial release commit: `c8d3410`. Draft PR:
+  `codex/refsure-latest-release`. Initial release commit: `c8d3410`. Public,
+  ready-for-review PR:
   `https://github.com/kirannarla2716-del/RefSure/pull/3`.
 - `git diff --check`: passed.
 
@@ -228,6 +260,20 @@ and demonstrated-value gates; no paid-access claim should appear before then.
    age rating, and release metadata.
 6. Optional: create iOS Google OAuth credentials and re-enable Google Sign-In.
 
+### Android Release Blockers
+
+1. Install Android Studio/SDK and accept the Android toolchain licenses.
+2. Choose one permanent package ID, register it in Firebase, and add the
+   matching `google-services.json` and generated Android Firebase options.
+3. Remove the conflicting Gradle and MainActivity variants, then verify the
+   canonical build path.
+4. Create a protected upload keystore and Play App Signing configuration;
+   release builds must not use debug signing.
+5. Add RefSure adaptive/round launcher icons and validate required Android
+   permissions against actual features.
+6. Build and test a signed AAB across supported API levels, configure Play
+   Console privacy/data-safety/store metadata, and pass internal testing.
+
 ### Quality And Operations
 
 - Establish or reduce the 1,601-item analyzer baseline.
@@ -295,7 +341,8 @@ Current local demo:
 
 - Target repository: `kirannarla2716-del/RefSure`
 - Release branch: `codex/refsure-latest-release`
-- Draft pull request: `https://github.com/kirannarla2716-del/RefSure/pull/3`
+- Public ready-for-review pull request:
+  `https://github.com/kirannarla2716-del/RefSure/pull/3`
 - The source release candidate is published for review. This does not change
   the production NO-GO decision until Firebase deployment and live smoke-test
   gates pass.
