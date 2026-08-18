@@ -1,0 +1,4 @@
+interface:
+  display_name: "RefSure Project"
+  short_description: "Resume RefSure work from verified project state"
+  default_prompt: "Use $refsure-project to continue RefSure from its latest verified status."

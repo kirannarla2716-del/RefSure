@@ -1,7 +1,5 @@
-# Firebase credentials — NEVER commit
+# Firebase Android configuration is not registered yet.
 android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart
 
 # Flutter generated
 build/
@@ -10,7 +8,6 @@ build/
 .flutter-plugins-dependencies
 .packages
 *.g.dart
-.flutter-plugins-dependencies
 
 # IDE
 .idea/
@@ -18,3 +15,27 @@ build/
 *.iml
 .DS_Store
 Thumbs.db
+
+# macOS resource forks
+._*
+
+# Qoder
+.qoder/
+
+# Local properties
+android/local.properties
+
+# Generated
+.metadata
+*.ephemeral
+ios/Flutter/ephemeral/
+macos/Flutter/ephemeral/
+**/node_modules/
+functions/lib/
+functions/.env.*
+
+# Cowork session helpers
+rs_*.command
+_*.log
+_apps.json
+_webconfig.txt

@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "lib",
+    "rootDir": ".",
+    "target": "es2022",
+    "strict": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": [
+    "src/index.ts",
+    "src/account/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/applications/**/*.ts",
+    "src/gratitude/**/*.ts",
+    "src/privacy/**/*.ts",
+    "src/profiles/**/*.ts",
+    "src/safety/**/*.ts",
+    "src/verification/**/*.ts",
+    "test/account/**/*.ts",
+    "test/admin/**/*.ts",
+    "test/applications/**/*.ts",
+    "test/gratitude/**/*.ts",
+    "test/privacy/**/*.ts",
+    "test/profiles/**/*.ts",
+    "test/safety/**/*.ts",
+    "test/verification/**/*.ts"
+  ]
+}
