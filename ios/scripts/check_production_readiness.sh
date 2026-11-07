@@ -29,8 +29,8 @@ else
   [ "$plist_bundle_id" = 'com.refsure.refsure' ] || \
     fail "Firebase plist BUNDLE_ID does not match com.refsure.refsure."
   if [ -z "$reversed_client_id" ] && \
-      ! grep -q 'defaultTargetPlatform != TargetPlatform.iOS' \
-        "$ROOT/lib/firebase_options.dart"; then
+      ! grep -A1 'static bool get supportsGoogleSignIn =>' \
+        "$ROOT/lib/firebase_options.dart" | grep -q 'kIsWeb'; then
     fail "Google Sign-In must be configured or disabled on iOS."
   fi
   if [ -n "$reversed_client_id" ] && ! grep -q "$reversed_client_id" "$PLIST"; then

@@ -37,6 +37,7 @@ dependencies:
   dartz: ^0.10.1
   http: ^1.2.0
   shared_preferences: ^2.3.0
+  cupertino_icons: ^1.0.9
 
 dev_dependencies:
   flutter_test:
@@ -46,9 +47,24 @@ dev_dependencies:
   injectable_generator: ^2.6.2
   bloc_test: ^9.1.7
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   generate: true
   uses-material-design: true
   assets:
+    - assets/brand/
     - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/refsure-mark.png
+  adaptive_icon_background: "#F4FAF8"
+  adaptive_icon_foreground: assets/brand/refsure-mark.png
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: assets/brand/refsure-mark.png
+    background_color: "#F4FAF8"
+    theme_color: "#00B386"

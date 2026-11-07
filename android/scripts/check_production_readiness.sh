@@ -44,7 +44,7 @@ if grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' \
 fi
 
 if [ "$repository_only" != "1" ]; then
-  if ! grep -q 'TargetPlatform.android => android' "$ROOT/lib/firebase_options.dart"; then
+  if ! grep -q 'static const FirebaseOptions android' "$ROOT/lib/firebase_options.dart"; then
     fail "Android Firebase options are missing. Register com.refsure.refsure in refsure-d6e3a."
   fi
 

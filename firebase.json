@@ -6,6 +6,7 @@
           "projectId": "refsure-d6e3a",
           "configurations": {
             "web": "1:1085369749507:web:e607ca3dcc14665e46fe36",
+            "android": "1:1085369749507:android:ff9e30d1ade4f0b446fe36",
             "ios": "1:1085369749507:ios:f1eed666dca41b7e46fe36"
           }
         }
@@ -23,7 +24,7 @@
     "source": "functions",
     "runtime": "nodejs20",
     "predeploy": [
-      "npm --prefix \"$RESOURCE_DIR\" exec -- tsc --module commonjs --moduleResolution node --target es2022 --strict --esModuleInterop --skipLibCheck --sourceMap --outDir lib --rootDir src src/index.ts"
+      "npm --prefix \"$RESOURCE_DIR\" run build"
     ]
   },
   "hosting": {

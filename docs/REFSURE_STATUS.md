@@ -52,11 +52,11 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
 
 ### Android
 
-- Android is not production-ready and has no verified release build.
-- The local machine has no Android SDK, so an App Bundle cannot currently be
-  compiled or validated.
-- Firebase options contain web and iOS registrations only; there is no
-  Android Firebase registration or `google-services.json`.
+- Android Firebase app `1:1085369749507:android:ff9e30d1ade4f0b446fe36` is
+  registered for `com.refsure.refsure`; runtime Firebase options and the local
+  `google-services.json` are configured.
+- Android SDK 36, Java 21, required build tools/NDK, and all Android licences
+  are installed and accepted on the release machine.
 - Kotlin DSL is now the single Gradle source of truth, and the canonical
   application ID, namespace, and only MainActivity package are all
   `com.refsure.refsure`.
@@ -65,17 +65,22 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
 - Release builds fail closed when production keystore properties are absent;
   they no longer fall back to the debug signing key. A non-secret
   `key.properties.example` documents the required inputs.
-- Invalid and unnecessary broad media permissions and the missing round-icon
-  reference were removed. Final adaptive RefSure artwork is still required.
+- A protected upload keystore is stored outside version control and its secret
+  is held in macOS Keychain. The signed production App Bundle builds at
+  `build/app/outputs/bundle/release/app-release.aab`.
+- Invalid broad media permissions were removed. Final RefSure adaptive icons
+  are generated for Android from the canonical brand mark.
 - `android/scripts/check_production_readiness.sh` enforces these invariants and
-  currently reports only the missing Android Firebase registration and real
-  production signing credentials.
+  passes with the local release credentials.
+- Play Console upload, closed-track testing, and physical-device sign-off are
+  still pending.
 
 ### Brand Assets
 
-- iOS, Android, and web currently ship the stock Flutter logo rather than a
-  RefSure production mark. A final icon system, adaptive Android icon, and
-  store artwork are required before mobile submission.
+- The canonical emerald RefSure R/S referral-connection mark is stored at
+  `assets/brand/refsure-mark.png` and generated into Android adaptive icons,
+  the iOS AppIcon set, web icons, maskable PWA icons, and favicon.
+- Final store listing screenshots and promotional artwork remain pending.
 
 ## Working And Verified
 
@@ -161,6 +166,27 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
 - Firebase Functions trusted-command suite: 58 passed.
 - Firestore/Storage emulator security suite: 18 passed.
 - Public-profile migration safety suite: 2 passed.
+- Android Firebase registration completed for `com.refsure.refsure`; Android
+  runtime options and App Check Play Integrity integration are configured.
+- Android SDK 36 and the required native toolchain were installed. Static
+  Android production preflight passed, and a fresh signed production App
+  Bundle with App Check enabled built successfully at 49.9 MB.
+- A protected Android upload keystore was created locally, excluded from Git,
+  and backed by a macOS Keychain secret. Play Console registration and upload
+  remain pending.
+- The stock Flutter artwork was replaced across Android, iOS, and web by the
+  canonical RefSure R/S referral-connection mark.
+- Firestore rules and indexes were redeployed successfully to
+  `refsure-d6e3a`.
+- The Firebase Functions predeploy command was corrected to build from the
+  configured Functions resource directory. Its TypeScript build passes, but
+  live Functions deployment is blocked because the project remains on Spark
+  and cannot enable the required Google Cloud APIs.
+- Firebase Storage is not initialized because it also requires Blaze billing.
+  App Check remains unregistered for web, Android, and iOS; enforcement must
+  wait for real provider registration and traffic observation.
+- Full Xcode remains unavailable, so iOS archive, signing, simulator/device,
+  TestFlight, and App Store validation remain external release blockers.
 - Production-configured Flutter web release build: passed with App Check
   enabled and the CI audit placeholder site key.
 - Analyzer: 0 errors, 0 warnings, and 1,768 informational style findings.

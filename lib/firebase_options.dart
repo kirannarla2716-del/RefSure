@@ -46,10 +46,11 @@ class RefSureRuntimeConfig {
 
 class DefaultFirebaseOptions {
   static bool get supportsGoogleSignIn =>
-      kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
+      kIsWeb;
 
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) return web;
+    if (defaultTargetPlatform == TargetPlatform.android) return android;
     if (defaultTargetPlatform == TargetPlatform.iOS) return ios;
     throw UnsupportedError(
       'RefSure production Firebase is currently configured for web and iOS. '
@@ -84,5 +85,13 @@ class DefaultFirebaseOptions {
     projectId: 'refsure-d6e3a',
     storageBucket: 'refsure-d6e3a.firebasestorage.app',
     iosBundleId: 'com.refsure.refsure',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyBtnIt2LwE4VSix1Ki7I1cF_HIXL4DjKiU',
+    appId: '1:1085369749507:android:ff9e30d1ade4f0b446fe36',
+    messagingSenderId: '1085369749507',
+    projectId: 'refsure-d6e3a',
+    storageBucket: 'refsure-d6e3a.firebasestorage.app',
   );
 }
