@@ -12,21 +12,21 @@ import '../models/models.dart';
 const Map<String, List<String>> _skillAliases = {
   'javascript': ['js', 'javascript', 'es6', 'es2015', 'ecmascript'],
   'typescript': ['ts', 'typescript'],
-  'react':      ['react', 'reactjs', 'react.js'],
-  'node':       ['node', 'nodejs', 'node.js'],
-  'python':     ['python', 'python3', 'py'],
-  'java':       ['java', 'core java', 'java8', 'java11'],
+  'react': ['react', 'reactjs', 'react.js'],
+  'node': ['node', 'nodejs', 'node.js'],
+  'python': ['python', 'python3', 'py'],
+  'java': ['java', 'core java', 'java8', 'java11'],
   'kubernetes': ['kubernetes', 'k8s'],
-  'aws':        ['aws', 'amazon web services', 'amazon aws'],
-  'gcp':        ['gcp', 'google cloud', 'google cloud platform'],
-  'azure':      ['azure', 'microsoft azure'],
-  'sql':        ['sql', 'mysql', 'postgresql', 'postgres', 'mssql'],
-  'mongodb':    ['mongodb', 'mongo'],
-  'docker':     ['docker', 'container', 'containerization'],
-  'git':        ['git', 'github', 'gitlab', 'version control'],
+  'aws': ['aws', 'amazon web services', 'amazon aws'],
+  'gcp': ['gcp', 'google cloud', 'google cloud platform'],
+  'azure': ['azure', 'microsoft azure'],
+  'sql': ['sql', 'mysql', 'postgresql', 'postgres', 'mssql'],
+  'mongodb': ['mongodb', 'mongo'],
+  'docker': ['docker', 'container', 'containerization'],
+  'git': ['git', 'github', 'gitlab', 'version control'],
   'machine learning': ['ml', 'machine learning', 'deep learning', 'ai'],
-  'flutter':    ['flutter', 'dart flutter'],
-  'spring':     ['spring', 'spring boot', 'spring framework'],
+  'flutter': ['flutter', 'dart flutter'],
+  'spring': ['spring', 'spring boot', 'spring framework'],
   'react native': ['react native', 'rn', 'react-native'],
   'data analysis': ['data analysis', 'data analytics', 'analytics'],
   'system design': ['system design', 'distributed systems', 'architecture'],
@@ -38,15 +38,15 @@ const Map<String, List<String>> _skillAliases = {
 // ─────────────────────────────────────────────────────────────
 const Map<String, List<String>> _titleImpliedSkills = {
   'software engineer': ['coding', 'system design', 'git', 'debugging'],
-  'frontend':  ['javascript', 'react', 'css', 'html'],
-  'backend':   ['api', 'database', 'sql', 'server'],
+  'frontend': ['javascript', 'react', 'css', 'html'],
+  'backend': ['api', 'database', 'sql', 'server'],
   'fullstack': ['javascript', 'react', 'node', 'sql'],
   'data scientist': ['python', 'machine learning', 'sql', 'statistics'],
-  'devops':    ['kubernetes', 'docker', 'aws', 'ci/cd'],
+  'devops': ['kubernetes', 'docker', 'aws', 'ci/cd'],
   'product manager': ['product strategy', 'agile', 'roadmap', 'stakeholder'],
   'data engineer': ['python', 'sql', 'etl', 'spark'],
-  'android':   ['android', 'kotlin', 'java'],
-  'ios':       ['ios', 'swift', 'objective-c'],
+  'android': ['android', 'kotlin', 'java'],
+  'ios': ['ios', 'swift', 'objective-c'],
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -57,16 +57,14 @@ class MatchEngine {
     required AppUser seeker,
     required Job job,
   }) {
-    final seekerSkillsNorm  = _normalizeSkills(seeker.skills);
-    final jobRequiredNorm   = _normalizeSkills(job.skills);
-    final jobPreferredNorm  = _normalizeSkills(job.preferredSkills);
-    final titleNorm         = seeker.title.toLowerCase();
-    final jobDescLower      = job.description.toLowerCase();
+    final seekerSkillsNorm = _normalizeSkills(seeker.skills);
+    final titleNorm = seeker.title.toLowerCase();
+    final jobDescLower = job.description.toLowerCase();
 
     // ── 1. Skill score (40 pts) ────────────────────────────
-    final matched   = <String>[];
-    final missing   = <String>[];
-    int skillHits   = 0;
+    final matched = <String>[];
+    final missing = <String>[];
+    int skillHits = 0;
 
     for (final reqSkill in job.skills) {
       final norm = _normalizeOne(reqSkill);
@@ -86,9 +84,12 @@ class MatchEngine {
       }
     }
 
-    final skillRatio  = job.skills.isEmpty ? 1.0 : skillHits / job.skills.length;
-    final prefBonus   = job.preferredSkills.isEmpty ? 0.0 : preferredHits / job.preferredSkills.length;
-    final skillScore  = ((skillRatio * 35) + (prefBonus * 5)).round().clamp(0, 40);
+    final skillRatio = job.skills.isEmpty ? 1.0 : skillHits / job.skills.length;
+    final prefBonus = job.preferredSkills.isEmpty
+        ? 0.0
+        : preferredHits / job.preferredSkills.length;
+    final skillScore =
+        ((skillRatio * 35) + (prefBonus * 5)).round().clamp(0, 40);
 
     // ── 2. Experience score (20 pts) ───────────────────────
     int expScore = 0;
@@ -100,7 +101,13 @@ class MatchEngine {
     } else {
       // Under-qualified — scale by gap
       final gap = job.minExp - seeker.experience;
-      expScore = gap <= 1 ? 15 : gap <= 2 ? 10 : gap <= 3 ? 5 : 0;
+      expScore = gap <= 1
+          ? 15
+          : gap <= 2
+              ? 10
+              : gap <= 3
+                  ? 5
+                  : 0;
     }
 
     // ── 3. Location score (15 pts) ─────────────────────────
@@ -109,7 +116,7 @@ class MatchEngine {
       locationScore = 15; // Remote = always match
     } else {
       final seekerLoc = seeker.location.toLowerCase();
-      final jobLoc    = job.location.toLowerCase();
+      final jobLoc = job.location.toLowerCase();
       if (seekerLoc.contains(jobLoc) || jobLoc.contains(seekerLoc)) {
         locationScore = 15;
       } else if (_sameRegion(seekerLoc, jobLoc)) {
@@ -123,24 +130,28 @@ class MatchEngine {
     int contextScore = 0;
 
     // Title relevance to JD
-    final titleRelevance = _titleRelevanceScore(titleNorm, job.title.toLowerCase(), jobDescLower);
+    final titleRelevance =
+        _titleRelevanceScore(titleNorm, job.title.toLowerCase(), jobDescLower);
     contextScore += (titleRelevance * 10).round();
 
     // Bio keyword density
     final bioWords = seeker.bio.toLowerCase().split(RegExp(r'\s+'));
-    final jdWords  = jobDescLower.split(RegExp(r'\s+')).toSet();
-    final bioOverlap = bioWords.where((w) => w.length > 4 && jdWords.contains(w)).length;
+    final jdWords = jobDescLower.split(RegExp(r'\s+')).toSet();
+    final bioOverlap =
+        bioWords.where((w) => w.length > 4 && jdWords.contains(w)).length;
     contextScore += (bioOverlap * 2).clamp(0, 8);
 
     // Implied skills from title
     final implied = _getImpliedSkills(titleNorm);
-    final impliedMatches = implied.where((s) => jobDescLower.contains(s)).length;
+    final impliedMatches =
+        implied.where((s) => jobDescLower.contains(s)).length;
     contextScore += impliedMatches.clamp(0, 7);
 
     contextScore = contextScore.clamp(0, 25);
 
     // ── Total ──────────────────────────────────────────────
-    final total = (skillScore + expScore + locationScore + contextScore).clamp(0, 100);
+    final total =
+        (skillScore + expScore + locationScore + contextScore).clamp(0, 100);
 
     // ── Strengths & gaps ───────────────────────────────────
     final strengths = _buildStrengths(
@@ -161,8 +172,11 @@ class MatchEngine {
 
     // ── Recommendation ─────────────────────────────────────
     final recommendation = _buildRecommendation(
-      score: total, matched: matched, missing: missing,
-      seeker: seeker, job: job);
+        score: total,
+        matched: matched,
+        missing: missing,
+        seeker: seeker,
+        job: job);
 
     final band = MatchReport.bandFromScore(total);
 
@@ -199,7 +213,8 @@ class MatchEngine {
       }
     }
     // Partial match (substring)
-    if (haystack.any((h) => h.contains(needle) || needle.contains(h))) return true;
+    if (haystack.any((h) => h.contains(needle) || needle.contains(h)))
+      return true;
     return false;
   }
 
@@ -213,7 +228,8 @@ class MatchEngine {
       ['kolkata', 'calcutta'],
     ];
     for (final r in regions) {
-      if (r.any((c) => a.contains(c)) && r.any((c) => b.contains(c))) return true;
+      if (r.any((c) => a.contains(c)) && r.any((c) => b.contains(c)))
+        return true;
     }
     return false;
   }
@@ -222,8 +238,10 @@ class MatchEngine {
       String seekerTitle, String jobTitle, String jobDesc) {
     double score = 0.0;
     // Direct title word overlap
-    final jWords = jobTitle.split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
-    final sWords = seekerTitle.split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
+    final jWords =
+        jobTitle.split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
+    final sWords =
+        seekerTitle.split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
     final overlap = jWords.intersection(sWords).length;
     if (jWords.isNotEmpty) score += overlap / jWords.length * 0.7;
     // Title keywords in description
@@ -253,15 +271,21 @@ class MatchEngine {
       s.add('Strong skill overlap: ${matchedSkills.take(3).join(", ")}');
     }
     if (expScore == 20) {
-      s.add('Experience perfectly within required range (${seeker.experience} yrs)');
+      s.add(
+          'Experience perfectly within required range (${seeker.experience} yrs)');
     }
     if (locationScore == 15) {
-      s.add(job.workMode == 'Remote' ? 'Role is remote — location no barrier' : 'Located in ${seeker.location}');
+      s.add(job.workMode == 'Remote'
+          ? 'Role is remote — location no barrier'
+          : 'Located in ${seeker.location}');
     }
-    if (seeker.orgVerified) s.add('Organisation email verified — trusted profile');
+    if (seeker.orgVerified)
+      s.add('Organisation email verified — trusted profile');
     if (seeker.profileComplete >= 80) s.add('Complete, well-filled profile');
-    if (seeker.skills.length >= job.preferredSkills.length && job.preferredSkills.isNotEmpty) {
-      s.add('Covers ${matchedSkills.length} of ${job.skills.length} required skills');
+    if (seeker.skills.length >= job.preferredSkills.length &&
+        job.preferredSkills.isNotEmpty) {
+      s.add(
+          'Covers ${matchedSkills.length} of ${job.skills.length} required skills');
     }
     return s.take(4).toList();
   }
@@ -274,14 +298,16 @@ class MatchEngine {
   }) {
     final g = <String>[];
     if (missingSkills.isNotEmpty) {
-      g.add('Missing ${missingSkills.length} required skill(s): ${missingSkills.take(2).join(", ")}');
+      g.add(
+          'Missing ${missingSkills.length} required skill(s): ${missingSkills.take(2).join(", ")}');
     }
     if (expScore < 15) {
       final deficit = job.minExp - seeker.experience;
       if (deficit > 0) g.add('${deficit} year(s) short of minimum experience');
     }
     if (seeker.bio.isEmpty) g.add('No bio — harder for provider to assess fit');
-    if (seeker.skills.length < 4) g.add('Few skills listed — may underrepresent capability');
+    if (seeker.skills.length < 4)
+      g.add('Few skills listed — may underrepresent capability');
     return g.take(3).toList();
   }
 

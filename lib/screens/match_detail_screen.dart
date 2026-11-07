@@ -58,7 +58,7 @@ class MatchDetailScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _ScoreBar('Experience', report.experienceScore, 20, AppColors.emerald),
         const SizedBox(height: 12),
-        _ScoreBar('Location / Mode', report.locationScore, 15, AppColors.amber),
+        _ScoreBar('Location / Mode', report.locationScore, 15, AppColors.info),
         const SizedBox(height: 12),
         _ScoreBar('Context & Relevance', report.contextScore, 25, AppColors.accent),
       ])),

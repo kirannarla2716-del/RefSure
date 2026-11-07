@@ -1,0 +1,130 @@
+{
+  "@@locale": "en",
+  "appTitle": "RefSure",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "appTagline": "Where real referrals happen.",
+  "@appTagline": {
+    "description": "The app tagline shown on the auth screen"
+  },
+
+  "signIn": "Sign In",
+  "@signIn": {
+    "description": "Sign in tab label and button text"
+  },
+  "signUp": "Sign Up",
+  "@signUp": {
+    "description": "Sign up tab label"
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Sign up button text"
+  },
+  "email": "Email",
+  "password": "Password",
+  "fullName": "Full Name",
+  "forgotPassword": "Forgot password?",
+  "resetPassword": "Reset Password",
+  "sendLink": "Send Link",
+  "cancel": "Cancel",
+  "or": "or",
+  "continueWithGoogle": "Continue with Google",
+  "passwordHint": "Password (6+ chars)",
+
+  "jobSeeker": "Job Seeker",
+  "provider": "Provider",
+
+  "fillAllFields": "Please fill in all fields.",
+  "passwordTooShort": "Password must be at least 6 characters.",
+
+  "home": "Home",
+  "jobs": "Jobs",
+  "providers": "Providers",
+  "applied": "Applied",
+  "profile": "Profile",
+  "dashboard": "Dashboard",
+  "seekers": "Seekers",
+  "messages": "Messages",
+
+  "myApplications": "My Applications",
+  "notifications": "Notifications",
+  "editProfile": "Edit Profile",
+  "postJob": "Post a Job",
+  "verifyOrganization": "Verify Organization",
+
+  "jobTitle": "Job Title",
+  "company": "Company",
+  "location": "Location",
+  "bioSummary": "Bio / Summary",
+  "save": "Save",
+  "saving": "Saving...",
+
+  "apply": "Apply",
+  "appliedLabel": "Applied",
+  "applicationApplied": "Applied! Provider will review your profile.",
+  "alreadyApplied": "Already applied to this job.",
+  "matchScoreTooLow": "Match score too low (< 40%). Update your profile to qualify.",
+  "somethingWentWrong": "Something went wrong. Try again.",
+
+  "noJobsFound": "No jobs found",
+  "noApplicationsYet": "No applications yet",
+  "noNotifications": "No notifications",
+  "noMessages": "No messages yet",
+
+  "nApplied": "{count} applied",
+  "@nApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nYearsExperience": "{min}–{max} yrs",
+  "@nYearsExperience": {
+    "placeholders": {
+      "min": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+
+  "trustScore": "Trust Score",
+  "profileStrength": "Profile Strength",
+  "highTrust": "High Trust",
+  "buildingTrust": "Building Trust",
+  "newUser": "New",
+
+  "verified": "Verified",
+  "orgVerified": "Org Verified",
+  "hot": "HOT",
+  "newLabel": "NEW",
+
+  "all": "All",
+  "pending": "Pending",
+  "referred": "Referred",
+  "interview": "Interview",
+  "hired": "Hired",
+  "shortlisted": "Shortlisted",
+  "notSelected": "Not Selected",
+  "closed": "Closed",
+  "underReview": "Under Review",
+  "strongMatch": "Strong Match",
+  "needsReview": "Needs Review",
+
+  "remote": "Remote",
+  "hybrid": "Hybrid",
+  "onSite": "On-site",
+
+  "referrals": "Referrals",
+  "success": "Success",
+  "response": "Response",
+
+  "profileNotFound": "Profile not found",
+  "profileMissing": "Your account exists but profile is missing.",
+  "signOutAndSignUp": "Sign Out & Sign Up Again",
+  "completeProfileSetup": "Complete Profile Setup",
+
+  "markAllRead": "Mark all read",
+  "typeMessage": "Type a message...",
+  "send": "Send"
+}

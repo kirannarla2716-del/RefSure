@@ -1,0 +1,13 @@
+{
+  "name": "refsure-migrations",
+  "private": true,
+  "scripts": {
+    "public-profiles:dry-run": "node public_profiles.cjs",
+    "public-profiles:apply": "node public_profiles.cjs --apply",
+    "public-profiles:rollback": "node public_profiles.cjs --rollback",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

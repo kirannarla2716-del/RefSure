@@ -1,0 +1,13 @@
+build/
+.dart_tool/
+.idea/
+.vscode/
+.git/
+.qoder/
+._*
+*.iml
+.DS_Store
+.metadata
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
