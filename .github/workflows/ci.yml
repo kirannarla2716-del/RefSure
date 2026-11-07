@@ -34,6 +34,8 @@ jobs:
           java-version: 21
 
       - run: flutter pub get
+      - name: Validate Android repository configuration
+        run: REFSURE_ANDROID_REPOSITORY_ONLY=1 android/scripts/check_production_readiness.sh
       - name: Analyze the full application for compile errors
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter analyze lib/main.dart lib/firebase_options.dart lib/services/trusted_application_service.dart

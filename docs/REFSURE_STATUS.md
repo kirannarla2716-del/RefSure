@@ -1,6 +1,6 @@
 # RefSure Project Status
 
-Last verified: 2026-08-18
+Last verified: 2026-11-07
 
 This is the canonical handoff for RefSure. Update it when implementation,
 deployment state, test evidence, blockers, or release decisions change.
@@ -57,10 +57,19 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
   compiled or validated.
 - Firebase options contain web and iOS registrations only; there is no
   Android Firebase registration or `google-services.json`.
-- Duplicate Groovy/Kotlin Gradle configurations and duplicate MainActivity
-  packages disagree on the application ID (`com.refsure.app` versus
-  `com.refsure.refsure`). Release signing still uses the debug key.
-- The manifest references a missing `ic_launcher_round` resource.
+- Kotlin DSL is now the single Gradle source of truth, and the canonical
+  application ID, namespace, and only MainActivity package are all
+  `com.refsure.refsure`.
+- The standard Gradle wrapper is tracked again, making Android builds
+  reproducible on clean machines and CI once the Android SDK is available.
+- Release builds fail closed when production keystore properties are absent;
+  they no longer fall back to the debug signing key. A non-secret
+  `key.properties.example` documents the required inputs.
+- Invalid and unnecessary broad media permissions and the missing round-icon
+  reference were removed. Final adaptive RefSure artwork is still required.
+- `android/scripts/check_production_readiness.sh` enforces these invariants and
+  currently reports only the missing Android Firebase registration and real
+  production signing credentials.
 
 ### Brand Assets
 
@@ -146,6 +155,54 @@ UI journey but does not prove persisted seeker-to-referrer delivery.
 
 ## Latest Evidence
 
+### 2026-11-07 Release Hardening
+
+- Full Flutter suite: 116 passed.
+- Firebase Functions trusted-command suite: 58 passed.
+- Firestore/Storage emulator security suite: 18 passed.
+- Public-profile migration safety suite: 2 passed.
+- Production-configured Flutter web release build: passed with App Check
+  enabled and the CI audit placeholder site key.
+- Analyzer: 0 errors, 0 warnings, and 1,768 informational style findings.
+- Android configuration was reduced to one Kotlin DSL build and one canonical
+  MainActivity/package. Debug release signing, invalid media permissions, and
+  the missing round-icon reference were removed. The missing standard Gradle
+  wrapper was restored and its Kotlin build script now compiles up to the
+  expected local Android SDK check.
+- Android static preflight now fails for exactly two unresolved external
+  inputs: Firebase Android registration for `com.refsure.refsure` and genuine
+  production keystore properties. No Android SDK is installed locally, so an
+  App Bundle and device test remain unverified.
+- `git diff --check`: passed.
+
+### 2026-11-07 Ravikiran Branch Audit
+
+- Audited `ravikiran10jan/RefSure` `main` at commit `3064a6d` in an isolated
+  worktree. The branch was force-rewritten from the old `main`; it is one
+  commit ahead of that base but 21 commits behind the current release branch.
+- Flutter dependency resolution passed, but analysis failed with three errors
+  because `lib/firebase_options.dart` is ignored/missing and the new widget
+  test instantiates a nonexistent `MyApp`. `flutter test` therefore failed to
+  compile.
+- The added Spring Boot backend is not connected to the Flutter client, has no
+  CI or deployment assets, and cannot be reproduced from the repository
+  because the Maven launcher/wrapper is incomplete and Maven is not installed
+  locally.
+- The gateway checks only for the presence of a bearer string and forwards the
+  raw token as `X-User-Token`; it does not verify Firebase authentication or
+  derive a trusted UID. Multiple services then accept path/body user IDs and
+  perform privileged Admin SDK writes without ownership checks.
+- Critical examples include passwordless custom-token login by email,
+  unauthenticated arbitrary account deletion, arbitrary profile/org
+  verification and application status mutation, and unrestricted
+  conversation/notification access and creation.
+- The branch omits the current trusted Firebase Functions, security rules,
+  migrations, CI, administration, moderation, privacy, referral capacity/SLA,
+  and release-readiness work. It must not be merged wholesale. At most, review
+  isolated iOS project metadata or backend ideas and port them only after
+  redesigning authentication, authorization, transactions, tests, deployment,
+  and client integration.
+
 ### 2026-08-18 Mobile Release Audit
 
 - iOS static production preflight: passed.
@@ -194,7 +251,7 @@ The production decision remains **NO-GO**.
 - Firestore/Storage rules: 18 passed.
 - Public-profile migration safety: 2 passed.
 - Production-equivalent web release build: passed.
-- Full analyzer: no compile errors; 1,766 legacy findings remain.
+- Full analyzer: 0 errors, 0 warnings, and 1,768 informational style findings.
 - `git diff --check`: passed after the latest referral fix.
 - Production-equivalent web release build passed on 2026-08-11.
 - Demo-enabled web release build passed and was visually smoke-tested at

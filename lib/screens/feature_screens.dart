@@ -196,11 +196,11 @@ class ProviderJobsScreen extends StatelessWidget {
         backgroundColor: AppColors.bg,
         appBar: AppBar(
           title: const Text('Provider Jobs'),
-          bottom: TabBar(
+          bottom: const TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            tabs: const [
+            tabs: [
               Tab(text: 'My Positions'),
               Tab(text: 'Organization Jobs'),
             ],
@@ -470,9 +470,9 @@ class _ProviderDashboardState extends State<ProviderDashboardScreen>
             labelStyle:
                 GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
             tabs: [
-              Tab(text: 'Overview'),
+              const Tab(text: 'Overview'),
               Tab(text: 'Candidates ($total)'),
-              Tab(text: 'My Jobs'),
+              const Tab(text: 'My Jobs'),
             ]),
       ),
       body: TabBarView(controller: _tabs, children: [
@@ -681,7 +681,7 @@ class _CandidatesTabState extends State<_CandidatesTab> {
 
       Expanded(
           child: filtered.isEmpty
-              ? EmptyState(
+              ? const EmptyState(
                   icon: Icons.inbox_outlined,
                   title: 'No candidates here',
                   subtitle: 'Switch filter or post more jobs')
@@ -816,7 +816,7 @@ class _CandidateCardState extends State<_CandidateCard> {
               onTap: report != null
                   ? () => Navigator.push(
                       context,
-                      MaterialPageRoute(
+                      MaterialPageRoute<void>(
                           builder: (_) => MatchDetailScreen(
                               report: report,
                               jobTitle: job?.title ?? '',
@@ -1276,7 +1276,8 @@ class _JobManageCard extends StatelessWidget {
                   GoogleFonts.inter(fontSize: 12, color: AppColors.textSecond)),
           const SizedBox(height: 4),
           Row(children: [
-            Icon(Icons.people_outline, size: 12, color: AppColors.textHint),
+            const Icon(Icons.people_outline,
+                size: 12, color: AppColors.textHint),
             const SizedBox(width: 4),
             Text('$appCount applicants',
                 style:
@@ -1830,7 +1831,7 @@ class _CareersPortalImportState extends State<_CareersPortalImport> {
       _fetchedJobs = [];
       _selected.clear();
     });
-    await Future.delayed(const Duration(seconds: 2)); // Simulate API
+    await Future<void>.delayed(const Duration(seconds: 2)); // Simulate API
     setState(() {
       _fetching = false;
       // Demo data — real version calls Cloud Function
@@ -2179,7 +2180,7 @@ class ProfileScreen extends StatelessWidget {
               label: 'Email Support',
               value: AppConstants.supportEmail,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Email us at ${AppConstants.supportEmail}')));
               }),
           const Divider(height: 20),
@@ -2188,7 +2189,7 @@ class ProfileScreen extends StatelessWidget {
               label: 'Call Support',
               value: AppConstants.supportPhone,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Call us at ${AppConstants.supportPhone}')));
               }),
           const Divider(height: 20),

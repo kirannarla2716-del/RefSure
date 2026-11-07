@@ -15,7 +15,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     emit(OnboardingInProgress(
       step: 0,
       totalSteps: totalSteps,
-      data: <String, dynamic>{},
+      data: const <String, dynamic>{},
     ));
   }
 

@@ -96,7 +96,7 @@ class AuthService {
         // On mobile, use the google_sign_in package.
         final googleUser = await GoogleSignIn().signIn();
         if (googleUser == null) {
-          return AuthResult(success: false, error: 'Cancelled');
+          return const AuthResult(success: false, error: 'Cancelled');
         }
         final googleAuth = await googleUser.authentication;
         final credential = GoogleAuthProvider.credential(
@@ -125,7 +125,7 @@ class AuthService {
           experience: 0,
           skills: [],
           bio: '',
-          email: email ?? '',
+          email: email,
           photoUrl: photoUrl,
           profileComplete: 40,
         );
@@ -154,7 +154,7 @@ class AuthService {
   Future<AuthResult> sendPasswordReset(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-      return AuthResult(success: true);
+      return const AuthResult(success: true);
     } on FirebaseAuthException catch (e) {
       return AuthResult(success: false, error: _authError(e.code));
     }

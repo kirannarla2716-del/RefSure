@@ -135,7 +135,8 @@ class HomeScreen extends StatelessWidget {
                     child: const Text('See all'))),
             const SizedBox(height: 10),
             if (topJobs.isEmpty)
-              _EmptyMini(text: 'No active jobs right now. Check back soon.')
+              const _EmptyMini(
+                  text: 'No active jobs right now. Check back soon.')
             else
               ...topJobs.map((j) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -1395,7 +1396,7 @@ class JobDetailScreen extends StatelessWidget {
               child: TextButton(
                   onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
+                      MaterialPageRoute<void>(
                           builder: (_) => MatchDetailScreen(
                               report: report,
                               jobTitle: job.title,
@@ -1473,7 +1474,7 @@ class JobDetailScreen extends StatelessWidget {
           GestureDetector(
             onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                     builder: (_) => MatchDetailScreen(
                         report: report,
                         jobTitle: job.title,
@@ -2310,7 +2311,7 @@ class NotificationsScreen extends StatelessWidget {
                           Container(
                             width: 36,
                             height: 36,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                                 color: AppColors.primaryLight,
                                 shape: BoxShape.circle),
                             alignment: Alignment.center,
